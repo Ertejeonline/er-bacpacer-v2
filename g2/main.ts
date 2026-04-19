@@ -2,7 +2,7 @@ import { waitForEvenAppBridge, OsEventTypeList } from '@evenrealities/even_hub_s
 import type { SetStatus, AppActions } from '../_shared/app-types'
 import { appendEventLog } from '../_shared/log'
 import { initApp, updateDisplay } from './app'
-import { setMenuItem, setFocusedMenuItem, state, type MenuItem } from './state'
+import { setMenuItem, setFocusedMenuItem, state } from './state'
 import { menuItemFromIndex, updateMenuDisplay } from './renderer'
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -17,6 +17,33 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 
 export async function createBacpacerActions(setStatus: SetStatus): Promise<AppActions> {
   let connected = false
+  let unsubscribeEvenHubEvent: (() => void) | null = null
+  let teardownRegistered = false
+
+  const cleanupBridgeListeners = () => {
+    if (unsubscribeEvenHubEvent) {
+      try {
+        unsubscribeEvenHubEvent()
+        appendEventLog('EvenHub event listener cleaned up')
+      } catch (err) {
+        console.warn('[bacpacer] cleanup listener failed', err)
+      } finally {
+        unsubscribeEvenHubEvent = null
+      }
+    }
+  }
+
+  const registerTeardown = () => {
+    if (teardownRegistered) return
+    teardownRegistered = true
+
+    const onTeardown = () => {
+      cleanupBridgeListeners()
+    }
+
+    window.addEventListener('beforeunload', onTeardown)
+    window.addEventListener('pagehide', onTeardown)
+  }
 
   return {
     connect: async () => {
@@ -26,8 +53,11 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
       try {
         const bridge = await withTimeout(waitForEvenAppBridge(), 6000)
 
+        cleanupBridgeListeners()
+        registerTeardown()
+
         // Use native list menu events for robust selection and highlight.
-        bridge.onEvenHubEvent((event) => {
+        unsubscribeEvenHubEvent = bridge.onEvenHubEvent((event) => {
           console.log('EvenHub event:', event)
 
           if (event.listEvent) {
