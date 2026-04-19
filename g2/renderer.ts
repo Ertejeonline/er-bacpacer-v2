@@ -48,7 +48,8 @@ function getTopRightContent(): string {
   const percentFraction = latest.percent > 1 ? latest.percent / 100 : latest.percent
   const intervalMinutes = (latest.ml * percentFraction) / 0.5
   const nextDrinkAtMs = latest.timestampMs + intervalMinutes * 60_000
-  const remainingMinutes = Math.max(0, Math.round((nextDrinkAtMs - Date.now()) / 60_000))
+  const remainingMinutes = Math.round((nextDrinkAtMs - Date.now()) / 60_000)
+  if (remainingMinutes <= 0) return ''
   return `${remainingMinutes} minutes left`
 }
 
