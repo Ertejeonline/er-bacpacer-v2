@@ -156,6 +156,12 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
           if (event.sysEvent) {
             const eventType = event.sysEvent.eventType ?? 0
             if (eventType === OsEventTypeList.DOUBLE_CLICK_EVENT) {
+              const atRootMenu = state.menuVisible && !state.addDrinkSubmenuVisible && !state.resetConfirmVisible
+              if (atRootMenu) {
+                appendEventLog('Menu double-tap: shutDownPageContainer(1)')
+                void bridge.shutDownPageContainer(1)
+                return
+              }
               showMenu()
             }
           }

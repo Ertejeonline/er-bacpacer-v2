@@ -119,9 +119,9 @@ function buildStaticTextContainers(): TextContainerProperty[] {
   ]
 }
 
-async function showMenuListLayout(items: string[], name: string): Promise<void> {
+async function showMenuListLayout(items: string[], name: string): Promise<boolean> {
   const b = getBridge()
-  if (!b) return
+  if (!b) return false
 
   const textContainers = buildStaticTextContainers()
 
@@ -151,30 +151,32 @@ async function showMenuListLayout(items: string[], name: string): Promise<void> 
     if (result === 0) {
       containersCreated = true
       console.log('Containers created successfully')
+      return true
     } else {
       console.error('Failed to create containers:', result)
+      return false
     }
-    return
   }
 
-  await b.rebuildPageContainer(new RebuildPageContainer({
+  const rebuilt = await b.rebuildPageContainer(new RebuildPageContainer({
     containerTotalNum: 6,
     textObject: textContainers,
     listObject: [menuList],
   }))
+  return rebuilt
 }
 
-async function showMainMenuListLayout(): Promise<void> {
-  await showMenuListLayout(MENU_ITEMS.map(item => item.label || 'Home'), 'MainLeftMenu')
+async function showMainMenuListLayout(): Promise<boolean> {
+  return showMenuListLayout(MENU_ITEMS.map(item => item.label || 'Home'), 'MainLeftMenu')
 }
 
-async function showAddDrinkMenuListLayout(): Promise<void> {
-  await showMenuListLayout(ADD_DRINK_MENU_ITEMS, 'AddDrinkMenu')
+async function showAddDrinkMenuListLayout(): Promise<boolean> {
+  return showMenuListLayout(ADD_DRINK_MENU_ITEMS, 'AddDrinkMenu')
 }
 
-async function showDetailLayout(body: string): Promise<void> {
+async function showDetailLayout(body: string): Promise<boolean> {
   const b = getBridge()
-  if (!b) return
+  if (!b) return false
 
   const textContainers = [
     ...buildStaticTextContainers(),
@@ -198,20 +200,22 @@ async function showDetailLayout(body: string): Promise<void> {
     if (result === 0) {
       containersCreated = true
       console.log('Containers created successfully')
+      return true
     } else {
       console.error('Failed to create containers:', result)
+      return false
     }
-    return
   }
 
-  await b.rebuildPageContainer(new RebuildPageContainer({
+  const rebuilt = await b.rebuildPageContainer(new RebuildPageContainer({
     containerTotalNum: 6,
     textObject: textContainers,
   }))
+  return rebuilt
 }
 
-async function showResetConfirmListLayout(): Promise<void> {
-  await showMenuListLayout(RESET_CONFIRM_MENU_ITEMS, 'ResetConfirmMenu')
+async function showResetConfirmListLayout(): Promise<boolean> {
+  return showMenuListLayout(RESET_CONFIRM_MENU_ITEMS, 'ResetConfirmMenu')
 }
 
 export function menuItemFromIndex(index: number): MenuItem | undefined {
@@ -248,8 +252,10 @@ function getScreenBody(item: MenuItem): string {
 }
 
 export async function initMenu(): Promise<void> {
-  await showMainMenuListLayout()
-  currentLayoutMode = 'main-menu'
+  const ok = await showMainMenuListLayout()
+  if (ok) {
+    currentLayoutMode = 'main-menu'
+  }
 }
 
 export async function updateTopRightCountdownOnly(): Promise<void> {
@@ -289,17 +295,24 @@ export async function updateMenuDisplay(): Promise<void> {
     : (state.resetConfirmVisible ? 'reset-confirm' : (state.addDrinkSubmenuVisible ? 'adddrink-menu' : 'main-menu'))
 
   if (targetLayoutMode !== currentLayoutMode) {
+    let rendered = false
     if (targetLayoutMode === 'detail') {
       const body = getScreenBody(state.currentMenuItem)
-      await showDetailLayout(body)
+      rendered = await showDetailLayout(body)
     } else if (targetLayoutMode === 'reset-confirm') {
-      await showResetConfirmListLayout()
+      rendered = await showResetConfirmListLayout()
     } else if (targetLayoutMode === 'adddrink-menu') {
-      await showAddDrinkMenuListLayout()
+      rendered = await showAddDrinkMenuListLayout()
     } else {
-      await showMainMenuListLayout()
+      rendered = await showMainMenuListLayout()
     }
-    currentLayoutMode = targetLayoutMode
+
+    if (rendered) {
+      currentLayoutMode = targetLayoutMode
+    } else {
+      // Keep previous mode when render fails to avoid UI/state desync.
+      return
+    }
   } else if (targetLayoutMode === 'detail') {
     // Same detail layout: update only text content without rebuilding page.
     const body = getScreenBody(state.currentMenuItem)
