@@ -61,6 +61,8 @@ function clampNumber(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
 }
 
+const DRINK_ENTRY_MAX_AGE_MS = 24 * 60 * 60 * 1000
+
 function toPersistedState(): PersistedState {
   return {
     bpm: clampNumber(state.bpm, 60, 200),
@@ -105,8 +107,9 @@ export function loadPersistedState(): void {
       state.drinkPercent = clampNumber(parsed.drinkPercent, 0, 100)
     }
     if (Array.isArray(parsed.drinkEntries)) {
+      const now = Date.now()
       const rawEntries = parsed.drinkEntries as unknown[]
-      state.drinkEntries = rawEntries
+      const hydratedEntries = rawEntries
         .filter((entry) => typeof entry === 'object' && entry !== null)
         .map((entry) => {
           const candidate = entry as Partial<DrinkEntry> & { timeHHMM?: string }
@@ -116,7 +119,15 @@ export function loadPersistedState(): void {
           const timestampMs = typeof candidate.timestampMs === 'number' ? candidate.timestampMs : timestampFromHHMM(timeHHMM)
           return { ml, percent, timestampMs }
         })
+        .filter((entry) => (now - entry.timestampMs) < DRINK_ENTRY_MAX_AGE_MS)
         .slice(0, 500)
+
+      const hadPrunedEntries = hydratedEntries.length < rawEntries.length
+      state.drinkEntries = hydratedEntries
+
+      if (hadPrunedEntries) {
+        savePersistedState()
+      }
     }
   } catch (err) {
     console.warn('[bacpacer] failed to load persisted state', err)
