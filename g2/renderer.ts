@@ -41,6 +41,17 @@ const MAIN_Y = SIDE_HEIGHT
 const MAIN_HEIGHT = SCREEN_HEIGHT - 2 * SIDE_HEIGHT
 const MAIN_WIDTH = SCREEN_WIDTH / 2
 
+function getTopRightContent(): string {
+  const latest = state.drinkEntries[0]
+  if (!latest) return ''
+
+  const percentFraction = latest.percent > 1 ? latest.percent / 100 : latest.percent
+  const intervalMinutes = (latest.ml * percentFraction) / 0.5
+  const nextDrinkAtMs = latest.timestampMs + intervalMinutes * 60_000
+  const remainingMinutes = Math.max(0, Math.round((nextDrinkAtMs - Date.now()) / 60_000))
+  return `${remainingMinutes} minutes left`
+}
+
 function getMainRightContent(): string {
   const inAddDrinkContext = state.addDrinkSubmenuVisible || (!state.menuVisible && state.currentMenuItem === 'adddrink')
   if (!inAddDrinkContext) return ''
@@ -71,7 +82,7 @@ function buildStaticTextContainers(): TextContainerProperty[] {
     new TextContainerProperty({
       containerID: 2,
       containerName: 'TopRightContainer',
-      content: 'TopRightContainer',
+      content: getTopRightContent(),
       xPosition: SIDE_WIDTH,
       yPosition: 0,
       width: SIDE_WIDTH,
@@ -239,6 +250,30 @@ export async function initMenu(): Promise<void> {
   currentLayoutMode = 'main-menu'
 }
 
+export async function updateTopRightCountdownOnly(): Promise<void> {
+  const b = getBridge()
+  if (!b || !containersCreated) return
+
+  await b.textContainerUpgrade(new TextContainerUpgrade({
+    containerID: 2,
+    containerName: 'TopRightContainer',
+    content: getTopRightContent(),
+  }))
+}
+
+export async function updateRightDynamicContentOnly(): Promise<void> {
+  const b = getBridge()
+  if (!b || !containersCreated) return
+
+  await updateTopRightCountdownOnly()
+
+  await b.textContainerUpgrade(new TextContainerUpgrade({
+    containerID: 4,
+    containerName: 'MainRight',
+    content: getMainRightContent(),
+  }))
+}
+
 export async function updateMenuDisplay(): Promise<void> {
   const b = getBridge()
   if (!b || !containersCreated) return
@@ -279,11 +314,7 @@ export async function updateMenuDisplay(): Promise<void> {
     content: breadcrumb,
   }))
 
-  await b.textContainerUpgrade(new TextContainerUpgrade({
-    containerID: 4,
-    containerName: 'MainRight',
-    content: getMainRightContent(),
-  }))
+  await updateRightDynamicContentOnly()
 }
 
 export async function showContent(): Promise<void> {

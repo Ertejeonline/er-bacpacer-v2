@@ -14,7 +14,14 @@ import {
   state,
   storeCurrentDrink,
 } from './state'
-import { addDrinkSubmenuItemFromIndex, menuItemFromIndex, resetConfirmChoiceFromIndex, updateMenuDisplay } from './renderer'
+import {
+  addDrinkSubmenuItemFromIndex,
+  menuItemFromIndex,
+  resetConfirmChoiceFromIndex,
+  updateMenuDisplay,
+  updateRightDynamicContentOnly,
+  updateTopRightCountdownOnly,
+} from './renderer'
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -29,6 +36,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 export async function createBacpacerActions(setStatus: SetStatus): Promise<AppActions> {
   let connected = false
   let unsubscribeEvenHubEvent: (() => void) | null = null
+  let refreshTimerId: number | null = null
   let teardownRegistered = false
 
   const cleanupBridgeListeners = () => {
@@ -41,6 +49,11 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
       } finally {
         unsubscribeEvenHubEvent = null
       }
+    }
+
+    if (refreshTimerId !== null) {
+      window.clearInterval(refreshTimerId)
+      refreshTimerId = null
     }
   }
 
@@ -66,6 +79,10 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
 
         cleanupBridgeListeners()
         registerTeardown()
+
+        refreshTimerId = window.setInterval(() => {
+          void updateTopRightCountdownOnly()
+        }, 60_000)
 
         // Use native list menu events for robust selection and highlight.
         unsubscribeEvenHubEvent = bridge.onEvenHubEvent((event) => {
@@ -108,7 +125,7 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
                     setDrinkPercent(state.drinkPercent - 0.5)
                   }
                   appendEventLog(`Add drink submenu: ${submenuItem} (ml=${state.drinkMl}, abv=${state.drinkPercent}%)`)
-                  void updateMenuDisplay()
+                  void updateRightDynamicContentOnly()
                 }
               } else {
                 const selected = menuItemFromIndex(index)

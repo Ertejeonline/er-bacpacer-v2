@@ -8,6 +8,7 @@ export type DrinkEntry = {
   ml: number
   percent: number
   timeHHMM: string
+  timestampMs: number
 }
 
 const PERSISTENCE_KEY = 'bacpacer.persisted.v1'
@@ -71,6 +72,7 @@ function toPersistedState(): PersistedState {
       ml: clampNumber(entry.ml, 0, 2000),
       percent: clampNumber(entry.percent, 0, 100),
       timeHHMM: entry.timeHHMM,
+      timestampMs: entry.timestampMs,
     })),
   }
 }
@@ -113,7 +115,8 @@ export function loadPersistedState(): void {
           const ml = typeof candidate.ml === 'number' ? clampNumber(candidate.ml, 0, 2000) : state.drinkMl
           const percent = typeof candidate.percent === 'number' ? clampNumber(candidate.percent, 0, 100) : state.drinkPercent
           const timeHHMM = typeof candidate.timeHHMM === 'string' ? candidate.timeHHMM : '00:00'
-          return { ml, percent, timeHHMM }
+          const timestampMs = typeof candidate.timestampMs === 'number' ? candidate.timestampMs : timestampFromHHMM(timeHHMM)
+          return { ml, percent, timeHHMM, timestampMs }
         })
         .slice(0, 500)
     }
@@ -126,6 +129,26 @@ function formatHHMM(date: Date): string {
   const hh = String(date.getHours()).padStart(2, '0')
   const mm = String(date.getMinutes()).padStart(2, '0')
   return `${hh}:${mm}`
+}
+
+function timestampFromHHMM(value: string): number {
+  const match = /^(\d{2}):(\d{2})$/.exec(value)
+  if (!match) return Date.now()
+
+  const hh = Number(match[1])
+  const mm = Number(match[2])
+  if (!Number.isFinite(hh) || !Number.isFinite(mm) || hh < 0 || hh > 23 || mm < 0 || mm > 59) {
+    return Date.now()
+  }
+
+  const now = new Date()
+  const candidate = new Date(now)
+  candidate.setHours(hh, mm, 0, 0)
+  if (candidate.getTime() > now.getTime()) {
+    candidate.setDate(candidate.getDate() - 1)
+  }
+
+  return candidate.getTime()
 }
 
 export function setMenuItem(item: MenuItem): void {
@@ -171,10 +194,12 @@ export function setDrinkPercent(value: number): void {
 }
 
 export function storeCurrentDrink(): DrinkEntry {
+  const now = new Date()
   const entry: DrinkEntry = {
     ml: clampNumber(state.drinkMl, 0, 2000),
     percent: clampNumber(state.drinkPercent, 0, 100),
-    timeHHMM: formatHHMM(new Date()),
+    timeHHMM: formatHHMM(now),
+    timestampMs: now.getTime(),
   }
 
   state.drinkEntries = [entry, ...state.drinkEntries].slice(0, 500)
