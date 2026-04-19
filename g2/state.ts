@@ -5,8 +5,10 @@ export type MenuItem = 'home' | 'settings' | 'about' | 'help'
 
 export const state = {
   startupRendered: false,
-  menuOpen: false,
+  menuOpen: true, // menu is always open by default
+  menuVisible: true, // new state to control menu visibility
   currentMenuItem: 'home' as MenuItem,
+  focusedMenuItem: 'home' as MenuItem,
   pacerRunning: false,
   bpm: 120,
 }
@@ -27,5 +29,10 @@ export function toggleMenu(): void {
 
 export function setMenuItem(item: MenuItem): void {
   state.currentMenuItem = item
-  state.menuOpen = false // Close menu when selecting item
+  // Selecting an item opens its content view and hides the menu.
+  state.menuVisible = false
+}
+
+export function setFocusedMenuItem(item: MenuItem): void {
+  state.focusedMenuItem = item
 }
