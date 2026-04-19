@@ -6,6 +6,7 @@ export type MenuItem = 'home' | 'adddrink' | 'setupdrink' | 'help'
 export const state = {
   startupRendered: false,
   menuVisible: true, // new state to control menu visibility
+  addDrinkSubmenuVisible: false,
   currentMenuItem: 'home' as MenuItem,
   focusedMenuItem: 'home' as MenuItem,
   pacerRunning: false,
@@ -30,4 +31,8 @@ export function setMenuItem(item: MenuItem): void {
 
 export function setFocusedMenuItem(item: MenuItem): void {
   state.focusedMenuItem = item
+}
+
+export function setAddDrinkSubmenuVisible(visible: boolean): void {
+  state.addDrinkSubmenuVisible = visible
 }

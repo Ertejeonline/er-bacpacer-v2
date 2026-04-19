@@ -16,6 +16,14 @@ const MENU_ITEMS: { id: MenuItem; label: string }[] = [
   { id: 'help', label: 'Help' },
 ]
 
+const ADD_DRINK_MENU_ITEMS = [
+  'Add drink',
+  '+ ml',
+  '- ml',
+  '+ %',
+  '- %',
+]
+
 let containersCreated = false
 
 const SCREEN_WIDTH = 576
@@ -76,7 +84,7 @@ function buildStaticTextContainers(): TextContainerProperty[] {
   ]
 }
 
-async function showMenuListLayout(): Promise<void> {
+async function showMenuListLayout(items: string[], name: string): Promise<void> {
   const b = getBridge()
   if (!b) return
 
@@ -84,7 +92,7 @@ async function showMenuListLayout(): Promise<void> {
 
   const menuList = new ListContainerProperty({
     containerID: 3,
-    containerName: 'MainLeftMenu',
+    containerName: name,
     xPosition: 0,
     yPosition: MAIN_Y,
     width: MAIN_WIDTH,
@@ -92,10 +100,10 @@ async function showMenuListLayout(): Promise<void> {
     paddingLength: 4,
     isEventCapture: 1,
     itemContainer: new ListItemContainerProperty({
-      itemCount: MENU_ITEMS.length,
+      itemCount: items.length,
       itemWidth: MAIN_WIDTH - 10,
       isItemSelectBorderEn: 1,
-      itemName: MENU_ITEMS.map(item => item.label || 'Home'),
+      itemName: items,
     }),
   })
 
@@ -119,6 +127,14 @@ async function showMenuListLayout(): Promise<void> {
     textObject: textContainers,
     listObject: [menuList],
   }))
+}
+
+async function showMainMenuListLayout(): Promise<void> {
+  await showMenuListLayout(MENU_ITEMS.map(item => item.label || 'Home'), 'MainLeftMenu')
+}
+
+async function showAddDrinkMenuListLayout(): Promise<void> {
+  await showMenuListLayout(ADD_DRINK_MENU_ITEMS, 'AddDrinkMenu')
 }
 
 async function showDetailLayout(body: string): Promise<void> {
@@ -163,6 +179,10 @@ export function menuItemFromIndex(index: number): MenuItem | undefined {
   return MENU_ITEMS[index]?.id
 }
 
+export function addDrinkSubmenuItemFromIndex(index: number): string | undefined {
+  return ADD_DRINK_MENU_ITEMS[index]
+}
+
 function getMenuItemLabel(item: MenuItem): string {
   const found = MENU_ITEMS.find((menuItem) => menuItem.id === item)
   return found?.label ?? 'Menu'
@@ -182,7 +202,7 @@ function getScreenBody(item: MenuItem): string {
 }
 
 export async function initMenu(): Promise<void> {
-  await showMenuListLayout()
+  await showMainMenuListLayout()
 }
 
 export async function updateMenuDisplay(): Promise<void> {
@@ -190,14 +210,18 @@ export async function updateMenuDisplay(): Promise<void> {
   if (!b || !containersCreated) return
 
   const breadcrumb = state.menuVisible
-    ? 'Menu'
+    ? (state.addDrinkSubmenuVisible ? 'Add drink' : 'Menu')
     : `${getMenuItemLabel(state.currentMenuItem)}`
 
   if (!state.menuVisible) {
     const body = getScreenBody(state.currentMenuItem)
     await showDetailLayout(body)
   } else {
-    await showMenuListLayout()
+    if (state.addDrinkSubmenuVisible) {
+      await showAddDrinkMenuListLayout()
+    } else {
+      await showMainMenuListLayout()
+    }
   }
 
   await b.textContainerUpgrade(new TextContainerUpgrade({
