@@ -12,7 +12,7 @@ import { formatDrinkEntryTime, state, getBridge, type MenuItem } from './state'
 const MENU_ITEMS: { id: MenuItem; label: string }[] = [
   { id: 'home', label: '' },
   { id: 'adddrink', label: 'Add drink' },
-  { id: 'setupdrink', label: 'Setup drink' },
+  { id: 'setupdrink', label: 'Summary' },
   { id: 'reset', label: 'Reset' },
 ]
 
@@ -229,6 +229,7 @@ export function resetConfirmChoiceFromIndex(index: number): 'yes' | 'no' | undef
 }
 
 function getMenuItemLabel(item: MenuItem): string {
+  if (item === 'setupdrink') return 'Settings > Summary'
   const found = MENU_ITEMS.find((menuItem) => menuItem.id === item)
   return found?.label ?? 'Menu'
 }
