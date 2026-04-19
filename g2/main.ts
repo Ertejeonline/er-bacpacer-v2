@@ -3,7 +3,7 @@ import type { SetStatus, AppActions } from '../_shared/app-types'
 import { appendEventLog } from '../_shared/log'
 import { initApp, updateDisplay } from './app'
 import { setMenuItem, setFocusedMenuItem, state, type MenuItem } from './state'
-import { updateMenuDisplay } from './renderer'
+import { menuItemFromIndex, updateMenuDisplay } from './renderer'
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -26,27 +26,27 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
       try {
         const bridge = await withTimeout(waitForEvenAppBridge(), 6000)
 
-        // Set up event handling for hamburger menu
+        // Use native list menu events for robust selection and highlight.
         bridge.onEvenHubEvent((event) => {
           console.log('EvenHub event:', event)
 
-          if (event.textEvent) {
+          if (event.listEvent) {
             if (!state.menuVisible) return
-            const eventType = event.textEvent.eventType ?? 0
-            if (eventType === OsEventTypeList.SCROLL_TOP_EVENT) {
-              moveMenuFocus(-1)
-            } else if (eventType === OsEventTypeList.SCROLL_BOTTOM_EVENT) {
-              moveMenuFocus(1)
+            const eventType = event.listEvent.eventType ?? 0
+            if (eventType === OsEventTypeList.CLICK_EVENT) {
+              const index = event.listEvent.currentSelectItemIndex ?? 0
+              const selected = menuItemFromIndex(index)
+              if (selected) {
+                setMenuItem(selected)
+                void updateMenuDisplay()
+              }
             }
             return
           }
 
           if (event.sysEvent) {
             const eventType = event.sysEvent.eventType ?? 0
-            if (eventType === OsEventTypeList.CLICK_EVENT) {
-              if (!state.menuVisible) return
-              selectFocusedMenuItem()
-            } else if (eventType === OsEventTypeList.DOUBLE_CLICK_EVENT) {
+            if (eventType === OsEventTypeList.DOUBLE_CLICK_EVENT) {
               showMenu()
             }
           }
@@ -55,7 +55,7 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
         await initApp(bridge)
         connected = true
         setStatus('Connected. Swipe to focus, click to open, double-click to go back.')
-        appendEventLog('Bridge connected - hamburger menu ready')
+        appendEventLog('Bridge connected - list menu ready')
       } catch (err) {
         console.error('[bacpacer] connect failed', err)
         setStatus('Bridge not found. Running in mock mode.')
@@ -72,25 +72,6 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
       setStatus('Display updated')
     },
   }
-}
-
-// Handle menu interactions based on current state
-async function handleMenuInteraction(): Promise<void> {
-  // Kept for backward compatibility; click selects focused item.
-  await selectFocusedMenuItem()
-}
-
-async function moveMenuFocus(delta: number): Promise<void> {
-  const menuItems: MenuItem[] = ['home', 'settings', 'about', 'help']
-  const currentIndex = menuItems.indexOf(state.focusedMenuItem)
-  const nextIndex = (currentIndex + delta + menuItems.length) % menuItems.length
-  setFocusedMenuItem(menuItems[nextIndex])
-  await updateMenuDisplay()
-}
-
-async function selectFocusedMenuItem(): Promise<void> {
-  setMenuItem(state.focusedMenuItem)
-  await updateMenuDisplay()
 }
 
 async function showMenu(): Promise<void> {

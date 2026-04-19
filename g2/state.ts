@@ -1,7 +1,7 @@
 // Application state management
 import type { EvenAppBridge } from '@evenrealities/even_hub_sdk'
 
-export type MenuItem = 'home' | 'settings' | 'about' | 'help'
+export type MenuItem = 'home' | 'adddrink' | 'setupdrink' | 'help'
 
 export const state = {
   startupRendered: false,
