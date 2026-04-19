@@ -73,7 +73,7 @@ function buildStaticTextContainers(): TextContainerProperty[] {
   return [
     new TextContainerProperty({
       containerID: 1,
-      containerName: 'TopLeftContainer',
+      containerName: 'TopLeft',
       content: '',
       xPosition: 0,
       yPosition: 0,
@@ -82,7 +82,7 @@ function buildStaticTextContainers(): TextContainerProperty[] {
     }),
     new TextContainerProperty({
       containerID: 2,
-      containerName: 'TopRightContainer',
+      containerName: 'TopRight',
       content: getTopRightContent(),
       xPosition: SIDE_WIDTH,
       yPosition: 0,
@@ -100,8 +100,8 @@ function buildStaticTextContainers(): TextContainerProperty[] {
     }),
     new TextContainerProperty({
       containerID: 5,
-      containerName: 'BottomLeftContainer',
-      content: 'BottomLeftContainer',
+      containerName: 'BottomLeft',
+      content: 'BottomLeft',
       xPosition: 0,
       yPosition: SCREEN_HEIGHT - SIDE_HEIGHT,
       width: SIDE_WIDTH,
@@ -109,8 +109,8 @@ function buildStaticTextContainers(): TextContainerProperty[] {
     }),
     new TextContainerProperty({
       containerID: 6,
-      containerName: 'BottomRightContainer',
-      content: 'BottomRightContainer',
+      containerName: 'BottomRight',
+      content: 'BottomRight',
       xPosition: SIDE_WIDTH,
       yPosition: SCREEN_HEIGHT - SIDE_HEIGHT,
       width: SIDE_WIDTH,
@@ -258,7 +258,7 @@ export async function updateTopRightCountdownOnly(): Promise<void> {
 
   await b.textContainerUpgrade(new TextContainerUpgrade({
     containerID: 2,
-    containerName: 'TopRightContainer',
+    containerName: 'TopRight',
     content: getTopRightContent(),
   }))
 }
@@ -312,7 +312,7 @@ export async function updateMenuDisplay(): Promise<void> {
 
   await b.textContainerUpgrade(new TextContainerUpgrade({
     containerID: 1,
-    containerName: 'TopLeftContainer',
+    containerName: 'TopLeft',
     content: breadcrumb,
   }))
 
