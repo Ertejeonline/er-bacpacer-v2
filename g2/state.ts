@@ -3,6 +3,12 @@ import type { EvenAppBridge } from '@evenrealities/even_hub_sdk'
 
 export type MenuItem = 'home' | 'adddrink' | 'setupdrink' | 'help'
 
+export type DrinkEntry = {
+  ml: number
+  percent: number
+  timeHHMM: string
+}
+
 const PERSISTENCE_KEY = 'bacpacer.persisted.v1'
 
 type PersistedState = {
@@ -10,6 +16,7 @@ type PersistedState = {
   pacerRunning: boolean
   drinkMl: number
   drinkPercent: number
+  drinkEntries: DrinkEntry[]
 }
 
 const DEFAULT_PERSISTED_STATE: PersistedState = {
@@ -17,6 +24,7 @@ const DEFAULT_PERSISTED_STATE: PersistedState = {
   pacerRunning: false,
   drinkMl: 175,
   drinkPercent: 13.5,
+  drinkEntries: [],
 }
 
 export const state = {
@@ -29,6 +37,7 @@ export const state = {
   bpm: DEFAULT_PERSISTED_STATE.bpm,
   drinkMl: DEFAULT_PERSISTED_STATE.drinkMl,
   drinkPercent: DEFAULT_PERSISTED_STATE.drinkPercent,
+  drinkEntries: [...DEFAULT_PERSISTED_STATE.drinkEntries],
 }
 
 let _bridge: EvenAppBridge | null = null
@@ -55,6 +64,11 @@ function toPersistedState(): PersistedState {
     pacerRunning: Boolean(state.pacerRunning),
     drinkMl: clampNumber(state.drinkMl, 0, 2000),
     drinkPercent: clampNumber(state.drinkPercent, 0, 100),
+    drinkEntries: state.drinkEntries.slice(0, 500).map((entry) => ({
+      ml: clampNumber(entry.ml, 0, 2000),
+      percent: clampNumber(entry.percent, 0, 100),
+      timeHHMM: entry.timeHHMM,
+    })),
   }
 }
 
@@ -87,9 +101,28 @@ export function loadPersistedState(): void {
     if (typeof parsed.drinkPercent === 'number') {
       state.drinkPercent = clampNumber(parsed.drinkPercent, 0, 100)
     }
+    if (Array.isArray(parsed.drinkEntries)) {
+      const rawEntries = parsed.drinkEntries as unknown[]
+      state.drinkEntries = rawEntries
+        .filter((entry) => typeof entry === 'object' && entry !== null)
+        .map((entry) => {
+          const candidate = entry as Partial<DrinkEntry>
+          const ml = typeof candidate.ml === 'number' ? clampNumber(candidate.ml, 0, 2000) : state.drinkMl
+          const percent = typeof candidate.percent === 'number' ? clampNumber(candidate.percent, 0, 100) : state.drinkPercent
+          const timeHHMM = typeof candidate.timeHHMM === 'string' ? candidate.timeHHMM : '00:00'
+          return { ml, percent, timeHHMM }
+        })
+        .slice(0, 500)
+    }
   } catch (err) {
     console.warn('[bacpacer] failed to load persisted state', err)
   }
+}
+
+function formatHHMM(date: Date): string {
+  const hh = String(date.getHours()).padStart(2, '0')
+  const mm = String(date.getMinutes()).padStart(2, '0')
+  return `${hh}:${mm}`
 }
 
 export function setMenuItem(item: MenuItem): void {
@@ -124,4 +157,16 @@ export function setDrinkMl(value: number): void {
 export function setDrinkPercent(value: number): void {
   state.drinkPercent = clampNumber(value, 0, 100)
   savePersistedState()
+}
+
+export function storeCurrentDrink(): DrinkEntry {
+  const entry: DrinkEntry = {
+    ml: clampNumber(state.drinkMl, 0, 2000),
+    percent: clampNumber(state.drinkPercent, 0, 100),
+    timeHHMM: formatHHMM(new Date()),
+  }
+
+  state.drinkEntries = [entry, ...state.drinkEntries].slice(0, 500)
+  savePersistedState()
+  return entry
 }

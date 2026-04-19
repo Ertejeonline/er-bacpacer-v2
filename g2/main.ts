@@ -2,7 +2,7 @@ import { waitForEvenAppBridge, OsEventTypeList } from '@evenrealities/even_hub_s
 import type { SetStatus, AppActions } from '../_shared/app-types'
 import { appendEventLog } from '../_shared/log'
 import { initApp, updateDisplay } from './app'
-import { setMenuItem, setFocusedMenuItem, setAddDrinkSubmenuVisible, setDrinkMl, setDrinkPercent, state } from './state'
+import { setMenuItem, setFocusedMenuItem, setAddDrinkSubmenuVisible, setDrinkMl, setDrinkPercent, state, storeCurrentDrink } from './state'
 import { addDrinkSubmenuItemFromIndex, menuItemFromIndex, updateMenuDisplay } from './renderer'
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -68,7 +68,10 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
               if (state.addDrinkSubmenuVisible) {
                 const submenuItem = addDrinkSubmenuItemFromIndex(index)
                 if (submenuItem) {
-                  if (submenuItem === '+ ml') {
+                  if (submenuItem === 'Add drink') {
+                    const entry = storeCurrentDrink()
+                    appendEventLog(`Drink stored: ${entry.ml} ml @ ${entry.percent}% (${entry.timeHHMM})`)
+                  } else if (submenuItem === '+ ml') {
                     setDrinkMl(state.drinkMl + 25)
                   } else if (submenuItem === '- ml') {
                     setDrinkMl(state.drinkMl - 25)
