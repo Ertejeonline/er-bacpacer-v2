@@ -7,7 +7,6 @@ export type ResetChoice = 'yes' | 'no'
 export type DrinkEntry = {
   ml: number
   percent: number
-  timeHHMM: string
   timestampMs: number
 }
 
@@ -71,7 +70,6 @@ function toPersistedState(): PersistedState {
     drinkEntries: state.drinkEntries.slice(0, 500).map((entry) => ({
       ml: clampNumber(entry.ml, 0, 2000),
       percent: clampNumber(entry.percent, 0, 100),
-      timeHHMM: entry.timeHHMM,
       timestampMs: entry.timestampMs,
     })),
   }
@@ -111,12 +109,12 @@ export function loadPersistedState(): void {
       state.drinkEntries = rawEntries
         .filter((entry) => typeof entry === 'object' && entry !== null)
         .map((entry) => {
-          const candidate = entry as Partial<DrinkEntry>
+          const candidate = entry as Partial<DrinkEntry> & { timeHHMM?: string }
           const ml = typeof candidate.ml === 'number' ? clampNumber(candidate.ml, 0, 2000) : state.drinkMl
           const percent = typeof candidate.percent === 'number' ? clampNumber(candidate.percent, 0, 100) : state.drinkPercent
           const timeHHMM = typeof candidate.timeHHMM === 'string' ? candidate.timeHHMM : '00:00'
           const timestampMs = typeof candidate.timestampMs === 'number' ? candidate.timestampMs : timestampFromHHMM(timeHHMM)
-          return { ml, percent, timeHHMM, timestampMs }
+          return { ml, percent, timestampMs }
         })
         .slice(0, 500)
     }
@@ -194,12 +192,11 @@ export function setDrinkPercent(value: number): void {
 }
 
 export function storeCurrentDrink(): DrinkEntry {
-  const now = new Date()
+  const now = Date.now()
   const entry: DrinkEntry = {
     ml: clampNumber(state.drinkMl, 0, 2000),
     percent: clampNumber(state.drinkPercent, 0, 100),
-    timeHHMM: formatHHMM(now),
-    timestampMs: now.getTime(),
+    timestampMs: now,
   }
 
   state.drinkEntries = [entry, ...state.drinkEntries].slice(0, 500)
@@ -210,4 +207,8 @@ export function storeCurrentDrink(): DrinkEntry {
 export function clearDrinkEntries(): void {
   state.drinkEntries = []
   savePersistedState()
+}
+
+export function formatDrinkEntryTime(timestampMs: number): string {
+  return formatHHMM(new Date(timestampMs))
 }

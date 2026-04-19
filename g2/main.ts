@@ -4,6 +4,7 @@ import { appendEventLog } from '../_shared/log'
 import { initApp, updateDisplay } from './app'
 import {
   clearDrinkEntries,
+  formatDrinkEntryTime,
   setMenuItem,
   setFocusedMenuItem,
   setAddDrinkSubmenuVisible,
@@ -114,7 +115,7 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
                 if (submenuItem) {
                   if (submenuItem === 'Add drink') {
                     const entry = storeCurrentDrink()
-                    appendEventLog(`Drink stored: ${entry.ml} ml @ ${entry.percent}% (${entry.timeHHMM})`)
+                    appendEventLog(`Drink stored: ${entry.ml} ml @ ${entry.percent}% (${formatDrinkEntryTime(entry.timestampMs)})`)
                   } else if (submenuItem === '+ ml') {
                     setDrinkMl(state.drinkMl + 25)
                   } else if (submenuItem === '- ml') {

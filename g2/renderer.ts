@@ -7,7 +7,7 @@ import {
   TextContainerProperty,
   TextContainerUpgrade,
 } from '@evenrealities/even_hub_sdk'
-import { state, getBridge, type MenuItem } from './state'
+import { formatDrinkEntryTime, state, getBridge, type MenuItem } from './state'
 
 const MENU_ITEMS: { id: MenuItem; label: string }[] = [
   { id: 'home', label: '' },
@@ -59,7 +59,7 @@ function getMainRightContent(): string {
 
   const latest = `${state.drinkMl} ml    ${state.drinkPercent} %`
   const historyLines = state.drinkEntries.map((entry) => {
-    return `${entry.timeHHMM}  ${entry.ml} ml  ${entry.percent}%`
+    return `${formatDrinkEntryTime(entry.timestampMs)}  ${entry.ml} ml  ${entry.percent}%`
   })
 
   const history = historyLines.length > 0
