@@ -1,0 +1,72 @@
+@import "even-toolkit/web/theme-light.css";
+@import "even-toolkit/web/typography.css";
+@import "even-toolkit/web/utilities.css";
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--color-bg);
+  color: var(--color-text);
+  max-width: 480px;
+  margin: 0 auto;
+  padding: var(--spacing-card-margin);
+  -webkit-font-smoothing: antialiased;
+}
+
+#subtitle {
+  color: var(--color-text-dim);
+  text-align: center;
+  margin: 0 0 var(--spacing-section);
+}
+
+#subtitle strong {
+  color: var(--color-text);
+}
+
+.setting-row {
+  margin-bottom: 10px;
+}
+
+#status {
+  margin-top: var(--spacing-section);
+  text-align: center;
+  color: var(--color-text-dim);
+}
+
+.event-log {
+  width: 100%;
+  height: 200px;
+  margin-top: var(--spacing-section);
+  padding: var(--spacing-container-padding);
+  background: var(--color-surface-secondary);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-family: monospace;
+  font-size: 12px;
+  overflow-y: auto;
+}
+
+button {
+  width: 100%;
+  padding: var(--spacing-button-padding, 12px);
+  margin: 5px 0;
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+button:hover {
+  background: var(--color-primary-hover, var(--color-primary));
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

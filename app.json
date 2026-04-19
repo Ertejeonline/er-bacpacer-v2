@@ -1,0 +1,16 @@
+{
+    "package_id": "com.er.bacpacer",
+    "edition": "202601",
+    "name": "Bacpacer",
+    "version": "0.1.0",
+    "min_app_version": "0.1.0",
+    "min_sdk_version": "0.0.10",
+    "supported_languages": [
+        "en"
+    ],
+    "tagline": "A drinking pacer for Even G2 glasses",
+    "description": "If you want to maintain a steady drinking pace, log what you drink and see how long you have to wait for your next one.",
+    "author": "Ertehe",
+    "entrypoint": "index.html",
+    "permissions": []
+}
