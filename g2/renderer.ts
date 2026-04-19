@@ -25,6 +25,8 @@ const ADD_DRINK_MENU_ITEMS = [
 ]
 
 let containersCreated = false
+type LayoutMode = 'main-menu' | 'adddrink-menu' | 'detail'
+let currentLayoutMode: LayoutMode | null = null
 
 const SCREEN_WIDTH = 576
 const SCREEN_HEIGHT = 288
@@ -33,6 +35,10 @@ const SIDE_HEIGHT = 30
 const MAIN_Y = SIDE_HEIGHT
 const MAIN_HEIGHT = SCREEN_HEIGHT - 2 * SIDE_HEIGHT
 const MAIN_WIDTH = SCREEN_WIDTH / 2
+
+function getMainRightContent(): string {
+  return `${state.drinkMl} ml    ${state.drinkPercent} %`
+}
 
 function buildStaticTextContainers(): TextContainerProperty[] {
   return [
@@ -57,7 +63,7 @@ function buildStaticTextContainers(): TextContainerProperty[] {
     new TextContainerProperty({
       containerID: 4,
       containerName: 'MainRight',
-      content: 'MainRight',
+      content: getMainRightContent(),
       xPosition: MAIN_WIDTH,
       yPosition: MAIN_Y,
       width: MAIN_WIDTH,
@@ -193,7 +199,7 @@ function getScreenBody(item: MenuItem): string {
     case 'home':
       return ''
     case 'adddrink':
-      return `BPM: ${state.bpm}`
+      return `Add drink\nVolume: ${state.drinkMl} ml\nStrength: ${state.drinkPercent}%`
     case 'setupdrink':
       return 'Bacpacer v1.0'
     case 'help':
@@ -203,6 +209,7 @@ function getScreenBody(item: MenuItem): string {
 
 export async function initMenu(): Promise<void> {
   await showMainMenuListLayout()
+  currentLayoutMode = 'main-menu'
 }
 
 export async function updateMenuDisplay(): Promise<void> {
@@ -213,21 +220,40 @@ export async function updateMenuDisplay(): Promise<void> {
     ? (state.addDrinkSubmenuVisible ? 'Add drink' : 'Menu')
     : `${getMenuItemLabel(state.currentMenuItem)}`
 
-  if (!state.menuVisible) {
-    const body = getScreenBody(state.currentMenuItem)
-    await showDetailLayout(body)
-  } else {
-    if (state.addDrinkSubmenuVisible) {
+  const targetLayoutMode: LayoutMode = !state.menuVisible
+    ? 'detail'
+    : (state.addDrinkSubmenuVisible ? 'adddrink-menu' : 'main-menu')
+
+  if (targetLayoutMode !== currentLayoutMode) {
+    if (targetLayoutMode === 'detail') {
+      const body = getScreenBody(state.currentMenuItem)
+      await showDetailLayout(body)
+    } else if (targetLayoutMode === 'adddrink-menu') {
       await showAddDrinkMenuListLayout()
     } else {
       await showMainMenuListLayout()
     }
+    currentLayoutMode = targetLayoutMode
+  } else if (targetLayoutMode === 'detail') {
+    // Same detail layout: update only text content without rebuilding page.
+    const body = getScreenBody(state.currentMenuItem)
+    await b.textContainerUpgrade(new TextContainerUpgrade({
+      containerID: 3,
+      containerName: 'MainLeftDetail',
+      content: body,
+    }))
   }
 
   await b.textContainerUpgrade(new TextContainerUpgrade({
     containerID: 1,
     containerName: 'TopLeftContainer',
     content: breadcrumb,
+  }))
+
+  await b.textContainerUpgrade(new TextContainerUpgrade({
+    containerID: 4,
+    containerName: 'MainRight',
+    content: getMainRightContent(),
   }))
 }
 
