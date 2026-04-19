@@ -40,6 +40,13 @@ const SIDE_HEIGHT = 30
 const MAIN_Y = SIDE_HEIGHT
 const MAIN_HEIGHT = SCREEN_HEIGHT - 2 * SIDE_HEIGHT
 const MAIN_WIDTH = SCREEN_WIDTH / 2
+const MAX_RIGHT_HISTORY_LINES = 8
+const MAX_RIGHT_CONTENT_CHARS = 900
+
+function trimForRebuild(content: string): string {
+  if (content.length <= MAX_RIGHT_CONTENT_CHARS) return content
+  return `${content.slice(0, MAX_RIGHT_CONTENT_CHARS - 3)}...`
+}
 
 function getTopRightContent(): string {
   const latest = state.drinkEntries[0]
@@ -58,7 +65,7 @@ function getMainRightContent(): string {
   if (!inAddDrinkContext) return ''
 
   const latest = `${state.drinkMl} ml    ${state.drinkPercent} %`
-  const historyLines = state.drinkEntries.map((entry) => {
+  const historyLines = state.drinkEntries.slice(0, MAX_RIGHT_HISTORY_LINES).map((entry) => {
     return `${formatDrinkEntryTime(entry.timestampMs)}  ${entry.ml} ml  ${entry.percent}%`
   })
 
@@ -66,7 +73,7 @@ function getMainRightContent(): string {
     ? historyLines.join('\n')
     : 'No drinks stored yet'
 
-  return `${latest}\n\nDrinks:\n${history}`
+  return trimForRebuild(`${latest}\n\nDrinks:\n${history}`)
 }
 
 function buildStaticTextContainers(): TextContainerProperty[] {
