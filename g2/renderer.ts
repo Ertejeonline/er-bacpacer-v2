@@ -13,7 +13,7 @@ const MENU_ITEMS: { id: MenuItem; label: string }[] = [
   { id: 'home', label: '' },
   { id: 'adddrink', label: 'Add drink' },
   { id: 'setupdrink', label: 'Setup drink' },
-  { id: 'help', label: 'Help' },
+  { id: 'reset', label: 'Reset' },
 ]
 
 const ADD_DRINK_MENU_ITEMS = [
@@ -24,8 +24,13 @@ const ADD_DRINK_MENU_ITEMS = [
   '- %',
 ]
 
+const RESET_CONFIRM_MENU_ITEMS = [
+  'No',
+  'Yes',
+]
+
 let containersCreated = false
-type LayoutMode = 'main-menu' | 'adddrink-menu' | 'detail'
+type LayoutMode = 'main-menu' | 'adddrink-menu' | 'reset-confirm' | 'detail'
 let currentLayoutMode: LayoutMode | null = null
 
 const SCREEN_WIDTH = 576
@@ -190,12 +195,22 @@ async function showDetailLayout(body: string): Promise<void> {
   }))
 }
 
+async function showResetConfirmListLayout(): Promise<void> {
+  await showMenuListLayout(RESET_CONFIRM_MENU_ITEMS, 'ResetConfirmMenu')
+}
+
 export function menuItemFromIndex(index: number): MenuItem | undefined {
   return MENU_ITEMS[index]?.id
 }
 
 export function addDrinkSubmenuItemFromIndex(index: number): string | undefined {
   return ADD_DRINK_MENU_ITEMS[index]
+}
+
+export function resetConfirmChoiceFromIndex(index: number): 'yes' | 'no' | undefined {
+  if (index === 0) return 'no'
+  if (index === 1) return 'yes'
+  return undefined
 }
 
 function getMenuItemLabel(item: MenuItem): string {
@@ -211,8 +226,8 @@ function getScreenBody(item: MenuItem): string {
       return `Add drink\nVolume: ${state.drinkMl} ml\nStrength: ${state.drinkPercent}%`
     case 'setupdrink':
       return 'Bacpacer v1.0'
-    case 'help':
-      return 'Swipe to change focus\nClick to open\nDouble-click to go back'
+    case 'reset':
+      return 'Reset selected'
   }
 }
 
@@ -226,17 +241,19 @@ export async function updateMenuDisplay(): Promise<void> {
   if (!b || !containersCreated) return
 
   const breadcrumb = state.menuVisible
-    ? (state.addDrinkSubmenuVisible ? 'Add drink' : 'Menu')
+    ? (state.resetConfirmVisible ? 'Are you sure?' : (state.addDrinkSubmenuVisible ? 'Add drink' : 'Menu'))
     : `${getMenuItemLabel(state.currentMenuItem)}`
 
   const targetLayoutMode: LayoutMode = !state.menuVisible
     ? 'detail'
-    : (state.addDrinkSubmenuVisible ? 'adddrink-menu' : 'main-menu')
+    : (state.resetConfirmVisible ? 'reset-confirm' : (state.addDrinkSubmenuVisible ? 'adddrink-menu' : 'main-menu'))
 
   if (targetLayoutMode !== currentLayoutMode) {
     if (targetLayoutMode === 'detail') {
       const body = getScreenBody(state.currentMenuItem)
       await showDetailLayout(body)
+    } else if (targetLayoutMode === 'reset-confirm') {
+      await showResetConfirmListLayout()
     } else if (targetLayoutMode === 'adddrink-menu') {
       await showAddDrinkMenuListLayout()
     } else {

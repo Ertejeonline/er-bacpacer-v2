@@ -2,8 +2,19 @@ import { waitForEvenAppBridge, OsEventTypeList } from '@evenrealities/even_hub_s
 import type { SetStatus, AppActions } from '../_shared/app-types'
 import { appendEventLog } from '../_shared/log'
 import { initApp, updateDisplay } from './app'
-import { setMenuItem, setFocusedMenuItem, setAddDrinkSubmenuVisible, setDrinkMl, setDrinkPercent, state, storeCurrentDrink } from './state'
-import { addDrinkSubmenuItemFromIndex, menuItemFromIndex, updateMenuDisplay } from './renderer'
+import {
+  clearDrinkEntries,
+  setMenuItem,
+  setFocusedMenuItem,
+  setAddDrinkSubmenuVisible,
+  setDrinkMl,
+  setDrinkPercent,
+  setResetConfirmChoice,
+  setResetConfirmVisible,
+  state,
+  storeCurrentDrink,
+} from './state'
+import { addDrinkSubmenuItemFromIndex, menuItemFromIndex, resetConfirmChoiceFromIndex, updateMenuDisplay } from './renderer'
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -65,6 +76,22 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
             const eventType = event.listEvent.eventType ?? 0
             if (eventType === OsEventTypeList.CLICK_EVENT) {
               const index = event.listEvent.currentSelectItemIndex ?? 0
+              if (state.resetConfirmVisible) {
+                const choice = resetConfirmChoiceFromIndex(index)
+                if (!choice) return
+
+                setResetConfirmChoice(choice)
+                if (choice === 'yes') {
+                  clearDrinkEntries()
+                  appendEventLog('Drink history reset')
+                }
+
+                setResetConfirmVisible(false)
+                setAddDrinkSubmenuVisible(false)
+                void updateMenuDisplay()
+                return
+              }
+
               if (state.addDrinkSubmenuVisible) {
                 const submenuItem = addDrinkSubmenuItemFromIndex(index)
                 if (submenuItem) {
@@ -86,11 +113,20 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
               } else {
                 const selected = menuItemFromIndex(index)
                 if (selected === 'adddrink') {
+                  setResetConfirmVisible(false)
                   setAddDrinkSubmenuVisible(true)
                   void updateMenuDisplay()
                   return
                 }
+                if (selected === 'reset') {
+                  setAddDrinkSubmenuVisible(false)
+                  setResetConfirmChoice('no')
+                  setResetConfirmVisible(true)
+                  void updateMenuDisplay()
+                  return
+                }
                 if (selected) {
+                  setResetConfirmVisible(false)
                   setMenuItem(selected)
                   void updateMenuDisplay()
                 }
@@ -132,6 +168,8 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
 async function showMenu(): Promise<void> {
   state.menuVisible = true
   setAddDrinkSubmenuVisible(false)
+  setResetConfirmVisible(false)
+  setResetConfirmChoice('no')
   setFocusedMenuItem(state.currentMenuItem)
   await updateMenuDisplay()
 }
