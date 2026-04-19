@@ -5,7 +5,6 @@ export type MenuItem = 'home' | 'settings' | 'about' | 'help'
 
 export const state = {
   startupRendered: false,
-  menuOpen: true, // menu is always open by default
   menuVisible: true, // new state to control menu visibility
   currentMenuItem: 'home' as MenuItem,
   focusedMenuItem: 'home' as MenuItem,
@@ -21,10 +20,6 @@ export function getBridge(): EvenAppBridge | null {
 
 export function setBridge(b: EvenAppBridge): void {
   _bridge = b
-}
-
-export function toggleMenu(): void {
-  state.menuOpen = !state.menuOpen
 }
 
 export function setMenuItem(item: MenuItem): void {

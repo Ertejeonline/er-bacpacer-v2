@@ -1,11 +1,6 @@
 // Event handling for device interactions
-import { state, toggleMenu, setMenuItem, type MenuItem } from './state'
+import { state, setMenuItem, type MenuItem } from './state'
 import { updateMenuDisplay, showContent } from './renderer'
-
-export async function handleMenuToggle(): Promise<void> {
-  toggleMenu()
-  await updateMenuDisplay()
-}
 
 export async function handleMenuSelect(item: MenuItem): Promise<void> {
   setMenuItem(item)
