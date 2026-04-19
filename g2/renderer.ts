@@ -37,7 +37,16 @@ const MAIN_HEIGHT = SCREEN_HEIGHT - 2 * SIDE_HEIGHT
 const MAIN_WIDTH = SCREEN_WIDTH / 2
 
 function getMainRightContent(): string {
-  return `${state.drinkMl} ml    ${state.drinkPercent} %`
+  const latest = `${state.drinkMl} ml    ${state.drinkPercent} %`
+  const historyLines = state.drinkEntries.map((entry) => {
+    return `${entry.timeHHMM}  ${entry.ml} ml  ${entry.percent}%`
+  })
+
+  const history = historyLines.length > 0
+    ? historyLines.join('\n')
+    : 'No drinks stored yet'
+
+  return `${latest}\n\nDrinks:\n${history}`
 }
 
 function buildStaticTextContainers(): TextContainerProperty[] {
