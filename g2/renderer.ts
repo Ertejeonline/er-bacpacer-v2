@@ -67,8 +67,8 @@ export async function updateMenuDisplay(): Promise<void> {
   if (!b || !containersCreated) return
 
   const breadcrumb = state.menuVisible
-    ? 'Menu'
-    : `Menu > ${getMenuItemLabel(state.currentMenuItem)}`
+    ? ''
+    : `${getMenuItemLabel(state.currentMenuItem)}`
 
   if (!state.menuVisible) {
     // Detail view: keep breadcrumb and show body content only.
