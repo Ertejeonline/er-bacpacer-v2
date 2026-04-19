@@ -42,6 +42,9 @@ const MAIN_HEIGHT = SCREEN_HEIGHT - 2 * SIDE_HEIGHT
 const MAIN_WIDTH = SCREEN_WIDTH / 2
 
 function getMainRightContent(): string {
+  const inAddDrinkContext = state.addDrinkSubmenuVisible || (!state.menuVisible && state.currentMenuItem === 'adddrink')
+  if (!inAddDrinkContext) return ''
+
   const latest = `${state.drinkMl} ml    ${state.drinkPercent} %`
   const historyLines = state.drinkEntries.map((entry) => {
     return `${entry.timeHHMM}  ${entry.ml} ml  ${entry.percent}%`
