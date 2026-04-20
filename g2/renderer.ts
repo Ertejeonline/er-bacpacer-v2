@@ -7,6 +7,7 @@ import {
   TextContainerProperty,
   TextContainerUpgrade,
 } from '@evenrealities/even_hub_sdk'
+import { appendEventLog } from '../_shared/log'
 import { formatDrinkEntryTime, state, getBridge, type MenuItem } from './state'
 
 const MENU_ITEMS: { id: MenuItem; label: string }[] = [
@@ -32,6 +33,7 @@ const RESET_CONFIRM_MENU_ITEMS = [
 let containersCreated = false
 type LayoutMode = 'main-menu' | 'adddrink-menu' | 'reset-confirm' | 'detail'
 let currentLayoutMode: LayoutMode | null = null
+let renderQueue: Promise<void> = Promise.resolve()
 
 const SCREEN_WIDTH = 576
 const SCREEN_HEIGHT = 288
@@ -43,9 +45,24 @@ const MAIN_WIDTH = SCREEN_WIDTH / 2
 const MAX_RIGHT_HISTORY_LINES = 8
 const MAX_RIGHT_CONTENT_CHARS = 900
 
+type PageConfig = {
+  containerTotalNum: number
+  textObject?: TextContainerProperty[]
+  listObject?: ListContainerProperty[]
+}
+
 function trimForRebuild(content: string): string {
   if (content.length <= MAX_RIGHT_CONTENT_CHARS) return content
   return `${content.slice(0, MAX_RIGHT_CONTENT_CHARS - 3)}...`
+}
+
+function runSerializedRender(task: () => Promise<void>): Promise<void> {
+  const next = renderQueue.then(task, task).catch((err) => {
+    console.warn('[bacpacer] render operation failed', err)
+    appendEventLog('Renderer: operation failed')
+  })
+  renderQueue = next
+  return next
 }
 
 function getTopRightContent(): string {
@@ -126,10 +143,120 @@ function buildStaticTextContainers(): TextContainerProperty[] {
   ]
 }
 
-async function showMenuListLayout(items: string[], name: string): Promise<boolean> {
+async function createPage(config: PageConfig): Promise<boolean> {
   const b = getBridge()
   if (!b) return false
 
+  const result = await b.createStartUpPageContainer(new CreateStartUpPageContainer(config))
+  if (result === 0) {
+    containersCreated = true
+    return true
+  }
+
+  appendEventLog(`Renderer: create failed code=${String(result)}`)
+  return false
+}
+
+async function rebuildPage(config: PageConfig): Promise<boolean> {
+  const b = getBridge()
+  if (!b) return false
+
+  return b.rebuildPageContainer(new RebuildPageContainer(config))
+}
+
+async function applyPage(config: PageConfig): Promise<boolean> {
+  // First render in this runtime.
+  if (!containersCreated) {
+    return createPage(config)
+  }
+
+  // Normal path: rebuild existing page.
+  const rebuilt = await rebuildPage(config)
+  if (rebuilt) return true
+
+  // Recovery path: page may have been torn down or lost; recreate.
+  appendEventLog('Renderer: rebuild failed, retrying create')
+  containersCreated = false
+  return createPage(config)
+}
+
+async function updateTopRightCountdownOnlyInternal(): Promise<void> {
+  const b = getBridge()
+  if (!b || !containersCreated) return
+
+  await b.textContainerUpgrade(new TextContainerUpgrade({
+    containerID: 2,
+    containerName: 'TopRight',
+    content: getTopRightContent(),
+  }))
+}
+
+async function updateRightDynamicContentOnlyInternal(): Promise<void> {
+  const b = getBridge()
+  if (!b || !containersCreated) return
+
+  await updateTopRightCountdownOnlyInternal()
+
+  await b.textContainerUpgrade(new TextContainerUpgrade({
+    containerID: 4,
+    containerName: 'MainRight',
+    content: getMainRightContent(),
+  }))
+}
+
+async function updateMenuDisplayInternal(): Promise<void> {
+  const b = getBridge()
+  if (!b) return
+
+  const breadcrumb = state.menuVisible
+    ? (state.resetConfirmVisible ? 'Are you sure?' : (state.addDrinkSubmenuVisible ? 'Add drink' : 'Menu'))
+    : `${getMenuItemLabel(state.currentMenuItem)}`
+
+  const targetLayoutMode: LayoutMode = !state.menuVisible
+    ? 'detail'
+    : (state.resetConfirmVisible ? 'reset-confirm' : (state.addDrinkSubmenuVisible ? 'adddrink-menu' : 'main-menu'))
+
+  const needsFullLayoutRender = !containersCreated || targetLayoutMode !== currentLayoutMode
+
+  if (needsFullLayoutRender) {
+    let rendered = false
+    if (targetLayoutMode === 'detail') {
+      const body = getScreenBody(state.currentMenuItem)
+      rendered = await showDetailLayout(body)
+    } else if (targetLayoutMode === 'reset-confirm') {
+      rendered = await showResetConfirmListLayout()
+    } else if (targetLayoutMode === 'adddrink-menu') {
+      rendered = await showAddDrinkMenuListLayout()
+    } else {
+      rendered = await showMainMenuListLayout()
+    }
+
+    if (rendered) {
+      currentLayoutMode = targetLayoutMode
+    } else {
+      // Keep previous mode when render fails to avoid UI/state desync.
+      return
+    }
+  } else if (targetLayoutMode === 'detail') {
+    // Same detail layout: update only text content without rebuilding page.
+    const body = getScreenBody(state.currentMenuItem)
+    await b.textContainerUpgrade(new TextContainerUpgrade({
+      containerID: 3,
+      containerName: 'MainLeftDetail',
+      content: body,
+    }))
+  }
+
+  await b.textContainerUpgrade(new TextContainerUpgrade({
+    containerID: 1,
+    containerName: 'TopLeft',
+    content: breadcrumb,
+  }))
+
+  await updateRightDynamicContentOnlyInternal()
+}
+
+async function showMenuListLayout(items: string[], name: string): Promise<boolean> {
   const textContainers = buildStaticTextContainers()
 
   const menuList = new ListContainerProperty({
@@ -149,28 +276,11 @@ async function showMenuListLayout(items: string[], name: string): Promise<boolea
     }),
   })
 
-  if (!containersCreated) {
-    const result = await b.createStartUpPageContainer(new CreateStartUpPageContainer({
-      containerTotalNum: 6,
-      textObject: textContainers,
-      listObject: [menuList],
-    }))
-    if (result === 0) {
-      containersCreated = true
-      console.log('Containers created successfully')
-      return true
-    } else {
-      console.error('Failed to create containers:', result)
-      return false
-    }
-  }
-
-  const rebuilt = await b.rebuildPageContainer(new RebuildPageContainer({
+  return applyPage({
     containerTotalNum: 6,
     textObject: textContainers,
     listObject: [menuList],
-  }))
-  return rebuilt
+  })
 }
 
 async function showMainMenuListLayout(): Promise<boolean> {
@@ -182,9 +292,6 @@ async function showAddDrinkMenuListLayout(): Promise<boolean> {
 }
 
 async function showDetailLayout(body: string): Promise<boolean> {
-  const b = getBridge()
-  if (!b) return false
-
   const textContainers = [
     ...buildStaticTextContainers(),
     new TextContainerProperty({
@@ -199,26 +306,10 @@ async function showDetailLayout(body: string): Promise<boolean> {
     }),
   ]
 
-  if (!containersCreated) {
-    const result = await b.createStartUpPageContainer(new CreateStartUpPageContainer({
-      containerTotalNum: 6,
-      textObject: textContainers,
-    }))
-    if (result === 0) {
-      containersCreated = true
-      console.log('Containers created successfully')
-      return true
-    } else {
-      console.error('Failed to create containers:', result)
-      return false
-    }
-  }
-
-  const rebuilt = await b.rebuildPageContainer(new RebuildPageContainer({
+  return applyPage({
     containerTotalNum: 6,
     textObject: textContainers,
-  }))
-  return rebuilt
+  })
 }
 
 async function showResetConfirmListLayout(): Promise<boolean> {
@@ -259,84 +350,24 @@ function getScreenBody(item: MenuItem): string {
 }
 
 export async function initMenu(): Promise<void> {
-  const ok = await showMainMenuListLayout()
-  if (ok) {
-    currentLayoutMode = 'main-menu'
-  }
+  await runSerializedRender(async () => {
+    const ok = await showMainMenuListLayout()
+    if (ok) {
+      currentLayoutMode = 'main-menu'
+    }
+  })
 }
 
 export async function updateTopRightCountdownOnly(): Promise<void> {
-  const b = getBridge()
-  if (!b || !containersCreated) return
-
-  await b.textContainerUpgrade(new TextContainerUpgrade({
-    containerID: 2,
-    containerName: 'TopRight',
-    content: getTopRightContent(),
-  }))
+  await runSerializedRender(updateTopRightCountdownOnlyInternal)
 }
 
 export async function updateRightDynamicContentOnly(): Promise<void> {
-  const b = getBridge()
-  if (!b || !containersCreated) return
-
-  await updateTopRightCountdownOnly()
-
-  await b.textContainerUpgrade(new TextContainerUpgrade({
-    containerID: 4,
-    containerName: 'MainRight',
-    content: getMainRightContent(),
-  }))
+  await runSerializedRender(updateRightDynamicContentOnlyInternal)
 }
 
 export async function updateMenuDisplay(): Promise<void> {
-  const b = getBridge()
-  if (!b || !containersCreated) return
-
-  const breadcrumb = state.menuVisible
-    ? (state.resetConfirmVisible ? 'Are you sure?' : (state.addDrinkSubmenuVisible ? 'Add drink' : 'Menu'))
-    : `${getMenuItemLabel(state.currentMenuItem)}`
-
-  const targetLayoutMode: LayoutMode = !state.menuVisible
-    ? 'detail'
-    : (state.resetConfirmVisible ? 'reset-confirm' : (state.addDrinkSubmenuVisible ? 'adddrink-menu' : 'main-menu'))
-
-  if (targetLayoutMode !== currentLayoutMode) {
-    let rendered = false
-    if (targetLayoutMode === 'detail') {
-      const body = getScreenBody(state.currentMenuItem)
-      rendered = await showDetailLayout(body)
-    } else if (targetLayoutMode === 'reset-confirm') {
-      rendered = await showResetConfirmListLayout()
-    } else if (targetLayoutMode === 'adddrink-menu') {
-      rendered = await showAddDrinkMenuListLayout()
-    } else {
-      rendered = await showMainMenuListLayout()
-    }
-
-    if (rendered) {
-      currentLayoutMode = targetLayoutMode
-    } else {
-      // Keep previous mode when render fails to avoid UI/state desync.
-      return
-    }
-  } else if (targetLayoutMode === 'detail') {
-    // Same detail layout: update only text content without rebuilding page.
-    const body = getScreenBody(state.currentMenuItem)
-    await b.textContainerUpgrade(new TextContainerUpgrade({
-      containerID: 3,
-      containerName: 'MainLeftDetail',
-      content: body,
-    }))
-  }
-
-  await b.textContainerUpgrade(new TextContainerUpgrade({
-    containerID: 1,
-    containerName: 'TopLeft',
-    content: breadcrumb,
-  }))
-
-  await updateRightDynamicContentOnly()
+  await runSerializedRender(updateMenuDisplayInternal)
 }
 
 export async function showContent(): Promise<void> {
@@ -345,4 +376,10 @@ export async function showContent(): Promise<void> {
 
 export async function updateDisplay(): Promise<void> {
   await showContent()
+}
+
+export function resetRendererSession(): void {
+  containersCreated = false
+  currentLayoutMode = null
+  renderQueue = Promise.resolve()
 }

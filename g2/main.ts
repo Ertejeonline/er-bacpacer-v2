@@ -18,9 +18,9 @@ import {
 import {
   addDrinkSubmenuItemFromIndex,
   menuItemFromIndex,
+  resetRendererSession,
   resetConfirmChoiceFromIndex,
   updateMenuDisplay,
-  updateRightDynamicContentOnly,
   updateTopRightCountdownOnly,
 } from './renderer'
 
@@ -36,9 +36,31 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 
 export async function createBacpacerActions(setStatus: SetStatus): Promise<AppActions> {
   let connected = false
+  let connecting = false
+  let appInForeground = true
   let unsubscribeEvenHubEvent: (() => void) | null = null
   let refreshTimerId: number | null = null
   let teardownRegistered = false
+
+  const stopRefreshTimer = () => {
+    if (refreshTimerId !== null) {
+      window.clearInterval(refreshTimerId)
+      refreshTimerId = null
+    }
+  }
+
+  const startRefreshTimer = () => {
+    if (!connected || !appInForeground) return
+    stopRefreshTimer()
+    refreshTimerId = window.setInterval(() => {
+      void updateTopRightCountdownOnly()
+    }, 60_000)
+  }
+
+  const refreshDisplayIfActive = () => {
+    if (!connected || !appInForeground) return
+    void updateMenuDisplay()
+  }
 
   const cleanupBridgeListeners = () => {
     if (unsubscribeEvenHubEvent) {
@@ -52,10 +74,7 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
       }
     }
 
-    if (refreshTimerId !== null) {
-      window.clearInterval(refreshTimerId)
-      refreshTimerId = null
-    }
+    stopRefreshTimer()
   }
 
   const registerTeardown = () => {
@@ -72,6 +91,17 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
 
   return {
     connect: async () => {
+      if (connecting) {
+        setStatus('Connection already in progress...')
+        return
+      }
+      if (connected) {
+        setStatus('Already connected')
+        return
+      }
+
+      connecting = true
+
       setStatus('Connecting to Even bridge...')
       appendEventLog(`Bacpacer v${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'}`)
 
@@ -80,10 +110,6 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
 
         cleanupBridgeListeners()
         registerTeardown()
-
-        refreshTimerId = window.setInterval(() => {
-          void updateTopRightCountdownOnly()
-        }, 60_000)
 
         // Use native list menu events for robust selection and highlight.
         unsubscribeEvenHubEvent = bridge.onEvenHubEvent((event) => {
@@ -106,7 +132,7 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
 
                 setResetConfirmVisible(false)
                 setAddDrinkSubmenuVisible(false)
-                void updateMenuDisplay()
+                refreshDisplayIfActive()
                 return
               }
 
@@ -126,27 +152,27 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
                     setDrinkPercent(state.drinkPercent - 0.5)
                   }
                   appendEventLog(`Add drink submenu: ${submenuItem} (ml=${state.drinkMl}, abv=${state.drinkPercent}%)`)
-                  void updateRightDynamicContentOnly()
+                  refreshDisplayIfActive()
                 }
               } else {
                 const selected = menuItemFromIndex(index)
                 if (selected === 'adddrink') {
                   setResetConfirmVisible(false)
                   setAddDrinkSubmenuVisible(true)
-                  void updateMenuDisplay()
+                  refreshDisplayIfActive()
                   return
                 }
                 if (selected === 'reset') {
                   setAddDrinkSubmenuVisible(false)
                   setResetConfirmChoice('no')
                   setResetConfirmVisible(true)
-                  void updateMenuDisplay()
+                  refreshDisplayIfActive()
                   return
                 }
                 if (selected) {
                   setResetConfirmVisible(false)
                   setMenuItem(selected)
-                  void updateMenuDisplay()
+                  refreshDisplayIfActive()
                 }
               }
             }
@@ -155,6 +181,29 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
 
           if (event.sysEvent) {
             const eventType = event.sysEvent.eventType ?? 0
+            if (eventType === OsEventTypeList.FOREGROUND_ENTER_EVENT) {
+              appendEventLog('Lifecycle: foreground enter')
+              appInForeground = true
+              startRefreshTimer()
+              refreshDisplayIfActive()
+              return
+            }
+            if (eventType === OsEventTypeList.FOREGROUND_EXIT_EVENT) {
+              appendEventLog('Lifecycle: foreground exit')
+              appInForeground = false
+              stopRefreshTimer()
+              return
+            }
+            if (eventType === OsEventTypeList.ABNORMAL_EXIT_EVENT || eventType === OsEventTypeList.SYSTEM_EXIT_EVENT) {
+              appendEventLog(`Lifecycle: exit event=${String(eventType)}`)
+              appInForeground = false
+              cleanupBridgeListeners()
+              resetRendererSession()
+              connected = false
+              setStatus('Disconnected. Tap Connect to reconnect.')
+              return
+            }
+
             if (eventType === OsEventTypeList.DOUBLE_CLICK_EVENT) {
               const atRootMenu = state.menuVisible && !state.addDrinkSubmenuVisible && !state.resetConfirmVisible
               if (atRootMenu) {
@@ -169,12 +218,16 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
 
         await initApp(bridge)
         connected = true
+  appInForeground = true
+        startRefreshTimer()
         setStatus('Connected. Swipe to focus, click to open, double-click to go back.')
         appendEventLog('Bridge connected - list menu ready')
       } catch (err) {
         console.error('[bacpacer] connect failed', err)
         setStatus('Bridge not found. Running in mock mode.')
         appendEventLog('Connection failed')
+      } finally {
+        connecting = false
       }
     },
 
