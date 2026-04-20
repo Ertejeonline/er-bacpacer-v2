@@ -184,6 +184,9 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
             if (eventType === OsEventTypeList.FOREGROUND_ENTER_EVENT) {
               appendEventLog('Lifecycle: foreground enter')
               appInForeground = true
+              // Real glasses may invalidate page/container state while another
+              // system surface is shown over the app; force a full render sync.
+              resetRendererSession()
               startRefreshTimer()
               refreshDisplayIfActive()
               return
