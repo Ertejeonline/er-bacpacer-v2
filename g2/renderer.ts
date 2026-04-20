@@ -143,18 +143,18 @@ function buildStaticTextContainers(): TextContainerProperty[] {
   ]
 }
 
-async function createPage(config: PageConfig): Promise<boolean> {
+async function createPage(config: PageConfig): Promise<number | null> {
   const b = getBridge()
-  if (!b) return false
+  if (!b) return null
 
   const result = await b.createStartUpPageContainer(new CreateStartUpPageContainer(config))
   if (result === 0) {
     containersCreated = true
-    return true
+    return 0
   }
 
   appendEventLog(`Renderer: create failed code=${String(result)}`)
-  return false
+  return result
 }
 
 async function rebuildPage(config: PageConfig): Promise<boolean> {
@@ -167,7 +167,18 @@ async function rebuildPage(config: PageConfig): Promise<boolean> {
 async function applyPage(config: PageConfig): Promise<boolean> {
   // First render in this runtime.
   if (!containersCreated) {
-    return createPage(config)
+    const created = await createPage(config)
+    if (created === 0) return true
+
+    // Some firmware rejects repeated startup-create with code 1 even when
+    // a page exists. Retry rebuild as a recovery path.
+    if (created === 1) {
+      containersCreated = true
+      appendEventLog('Renderer: create code=1, retrying rebuild')
+      return rebuildPage(config)
+    }
+
+    return false
   }
 
   // Normal path: rebuild existing page.
@@ -177,7 +188,16 @@ async function applyPage(config: PageConfig): Promise<boolean> {
   // Recovery path: page may have been torn down or lost; recreate.
   appendEventLog('Renderer: rebuild failed, retrying create')
   containersCreated = false
-  return createPage(config)
+  const recreated = await createPage(config)
+  if (recreated === 0) return true
+
+  if (recreated === 1) {
+    containersCreated = true
+    appendEventLog('Renderer: recreate code=1, retrying rebuild')
+    return rebuildPage(config)
+  }
+
+  return false
 }
 
 async function updateTopRightCountdownOnlyInternal(): Promise<void> {
