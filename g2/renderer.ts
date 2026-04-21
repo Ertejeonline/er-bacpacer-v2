@@ -1,4 +1,3 @@
-// Renderer for displaying content on Even G2 glasses
 import {
   CreateStartUpPageContainer,
   ListContainerProperty,
@@ -8,42 +7,10 @@ import {
   TextContainerUpgrade,
 } from '@evenrealities/even_hub_sdk'
 import { appendEventLog } from '../_shared/log'
-import { formatDrinkEntryTime, state, getBridge, type MenuItem } from './state'
+import { getBridge, MENU_ITEMS, runBridgeTask, state } from './state'
 
-const MENU_ITEMS: { id: MenuItem; label: string }[] = [
-  { id: 'home', label: '' },
-  { id: 'adddrink', label: 'Add drink' },
-  { id: 'setupdrink', label: 'Summary' },
-  { id: 'reset', label: 'Reset' },
-]
-
-const ADD_DRINK_MENU_ITEMS = [
-  'Add drink',
-  '+ ml',
-  '- ml',
-  '+ %',
-  '- %',
-]
-
-const RESET_CONFIRM_MENU_ITEMS = [
-  'No',
-  'Yes',
-]
-
-let containersCreated = false
-type LayoutMode = 'main-menu' | 'adddrink-menu' | 'reset-confirm' | 'detail'
-let currentLayoutMode: LayoutMode | null = null
-let renderQueue: Promise<void> = Promise.resolve()
-
-const SCREEN_WIDTH = 576
-const SCREEN_HEIGHT = 288
-const SIDE_WIDTH = SCREEN_WIDTH / 2
-const SIDE_HEIGHT = 30
-const MAIN_Y = SIDE_HEIGHT
-const MAIN_HEIGHT = SCREEN_HEIGHT - 2 * SIDE_HEIGHT
-const MAIN_WIDTH = SCREEN_WIDTH / 2
-const MAX_RIGHT_HISTORY_LINES = 8
-const MAX_RIGHT_CONTENT_CHARS = 900
+const WIDTH = 576
+const HEIGHT = 288
 
 type PageConfig = {
   containerTotalNum: number
@@ -51,360 +18,146 @@ type PageConfig = {
   listObject?: ListContainerProperty[]
 }
 
-function trimForRebuild(content: string): string {
-  if (content.length <= MAX_RIGHT_CONTENT_CHARS) return content
-  return `${content.slice(0, MAX_RIGHT_CONTENT_CHARS - 3)}...`
-}
+async function renderPage(config: PageConfig): Promise<void> {
+  const bridge = getBridge()
+  if (!bridge) return
 
-function runSerializedRender(task: () => Promise<void>): Promise<void> {
-  const next = renderQueue.then(task, task).catch((err) => {
-    console.warn('[bacpacer] render operation failed', err)
-    appendEventLog('Renderer: operation failed')
-  })
-  renderQueue = next
-  return next
-}
-
-function getTopRightContent(): string {
-  const latest = state.drinkEntries[0]
-  if (!latest) return ''
-
-  const percentFraction = latest.percent > 1 ? latest.percent / 100 : latest.percent
-  const intervalMinutes = (latest.ml * percentFraction) / 0.5
-  const nextDrinkAtMs = latest.timestampMs + intervalMinutes * 60_000
-  const remainingMinutes = Math.round((nextDrinkAtMs - Date.now()) / 60_000)
-  if (remainingMinutes <= 0) return ''
-  return `${remainingMinutes} minutes left`
-}
-
-function getMainRightContent(): string {
-  const inAddDrinkContext = state.addDrinkSubmenuVisible || (!state.menuVisible && state.currentMenuItem === 'adddrink')
-  if (!inAddDrinkContext) return ''
-
-  const latest = `${state.drinkMl} ml    ${state.drinkPercent} %`
-  const historyLines = state.drinkEntries.slice(0, MAX_RIGHT_HISTORY_LINES).map((entry) => {
-    return `${formatDrinkEntryTime(entry.timestampMs)}  ${entry.ml} ml  ${entry.percent}%`
-  })
-
-  const history = historyLines.length > 0
-    ? historyLines.join('\n')
-    : 'No drinks stored yet'
-
-  return trimForRebuild(`${latest}\n\nDrinks:\n${history}`)
-}
-
-function buildStaticTextContainers(): TextContainerProperty[] {
-  return [
-    new TextContainerProperty({
-      containerID: 1,
-      containerName: 'TopLeft',
-      content: '',
-      xPosition: 0,
-      yPosition: 0,
-      width: SIDE_WIDTH,
-      height: SIDE_HEIGHT,
-    }),
-    new TextContainerProperty({
-      containerID: 2,
-      containerName: 'TopRight',
-      content: getTopRightContent(),
-      xPosition: SIDE_WIDTH,
-      yPosition: 0,
-      width: SIDE_WIDTH,
-      height: SIDE_HEIGHT,
-    }),
-    new TextContainerProperty({
-      containerID: 4,
-      containerName: 'MainRight',
-      content: getMainRightContent(),
-      xPosition: MAIN_WIDTH,
-      yPosition: MAIN_Y,
-      width: MAIN_WIDTH,
-      height: MAIN_HEIGHT,
-    }),
-    new TextContainerProperty({
-      containerID: 5,
-      containerName: 'BottomLeft',
-      content: 'BottomLeft',
-      xPosition: 0,
-      yPosition: SCREEN_HEIGHT - SIDE_HEIGHT,
-      width: SIDE_WIDTH,
-      height: SIDE_HEIGHT,
-    }),
-    new TextContainerProperty({
-      containerID: 6,
-      containerName: 'BottomRight',
-      content: 'BottomRight',
-      xPosition: SIDE_WIDTH,
-      yPosition: SCREEN_HEIGHT - SIDE_HEIGHT,
-      width: SIDE_WIDTH,
-      height: SIDE_HEIGHT,
-    }),
-  ]
-}
-
-async function createPage(config: PageConfig): Promise<number | null> {
-  const b = getBridge()
-  if (!b) return null
-
-  const result = await b.createStartUpPageContainer(new CreateStartUpPageContainer(config))
-  if (result === 0) {
-    containersCreated = true
-    return 0
-  }
-
-  appendEventLog(`Renderer: create failed code=${String(result)}`)
-  return result
-}
-
-async function rebuildPage(config: PageConfig): Promise<boolean> {
-  const b = getBridge()
-  if (!b) return false
-
-  return b.rebuildPageContainer(new RebuildPageContainer(config))
-}
-
-async function applyPage(config: PageConfig): Promise<boolean> {
-  // First render in this runtime.
-  if (!containersCreated) {
-    const created = await createPage(config)
-    if (created === 0) return true
-
-    // Some firmware rejects repeated startup-create with code 1 even when
-    // a page exists. Retry rebuild as a recovery path.
-    if (created === 1) {
-      containersCreated = true
-      appendEventLog('Renderer: create code=1, retrying rebuild')
-      return rebuildPage(config)
-    }
-
-    return false
-  }
-
-  // Normal path: rebuild existing page.
-  const rebuilt = await rebuildPage(config)
-  if (rebuilt) return true
-
-  // Recovery path: page may have been torn down or lost; recreate.
-  appendEventLog('Renderer: rebuild failed, retrying create')
-  containersCreated = false
-  const recreated = await createPage(config)
-  if (recreated === 0) return true
-
-  if (recreated === 1) {
-    containersCreated = true
-    appendEventLog('Renderer: recreate code=1, retrying rebuild')
-    return rebuildPage(config)
-  }
-
-  return false
-}
-
-async function updateTopRightCountdownOnlyInternal(): Promise<void> {
-  const b = getBridge()
-  if (!b || !containersCreated) return
-
-  await b.textContainerUpgrade(new TextContainerUpgrade({
-    containerID: 2,
-    containerName: 'TopRight',
-    content: getTopRightContent(),
-  }))
-}
-
-async function updateRightDynamicContentOnlyInternal(): Promise<void> {
-  const b = getBridge()
-  if (!b || !containersCreated) return
-
-  await updateTopRightCountdownOnlyInternal()
-
-  await b.textContainerUpgrade(new TextContainerUpgrade({
-    containerID: 4,
-    containerName: 'MainRight',
-    content: getMainRightContent(),
-  }))
-}
-
-async function updateMenuDisplayInternal(): Promise<void> {
-  const b = getBridge()
-  if (!b) return
-
-  const breadcrumb = state.menuVisible
-    ? (state.resetConfirmVisible ? 'Are you sure?' : (state.addDrinkSubmenuVisible ? 'Add drink' : 'Menu'))
-    : `${getMenuItemLabel(state.currentMenuItem)}`
-
-  const targetLayoutMode: LayoutMode = !state.menuVisible
-    ? 'detail'
-    : (state.resetConfirmVisible ? 'reset-confirm' : (state.addDrinkSubmenuVisible ? 'adddrink-menu' : 'main-menu'))
-
-  const needsFullLayoutRender = !containersCreated || targetLayoutMode !== currentLayoutMode
-  appendEventLog(
-    `Renderer: menuDisplay target=${targetLayoutMode} current=${currentLayoutMode ?? 'none'} fullRender=${String(needsFullLayoutRender)} menuVisible=${String(state.menuVisible)} addSub=${String(state.addDrinkSubmenuVisible)} resetConfirm=${String(state.resetConfirmVisible)} currentItem=${state.currentMenuItem}`,
-  )
-
-  if (needsFullLayoutRender) {
-    let rendered = false
-    if (targetLayoutMode === 'detail') {
-      const body = getScreenBody(state.currentMenuItem)
-      rendered = await showDetailLayout(body)
-    } else if (targetLayoutMode === 'reset-confirm') {
-      rendered = await showResetConfirmListLayout()
-    } else if (targetLayoutMode === 'adddrink-menu') {
-      rendered = await showAddDrinkMenuListLayout()
-    } else {
-      rendered = await showMainMenuListLayout()
-    }
-
-    if (rendered) {
-      currentLayoutMode = targetLayoutMode
-      appendEventLog(`Renderer: layout-applied mode=${targetLayoutMode}`)
-    } else {
-      // Keep previous mode when render fails to avoid UI/state desync.
-      appendEventLog(`Renderer: layout-failed mode=${targetLayoutMode}`)
+  await runBridgeTask(async () => {
+    if (!state.startupRendered) {
+      const result = await bridge.createStartUpPageContainer(new CreateStartUpPageContainer(config))
+      if (result !== 0) {
+        throw new Error(`createStartUpPageContainer failed with code ${String(result)}`)
+      }
+      state.startupRendered = true
       return
     }
-  } else if (targetLayoutMode === 'detail') {
-    // Same detail layout: update only text content without rebuilding page.
-    const body = getScreenBody(state.currentMenuItem)
-    await b.textContainerUpgrade(new TextContainerUpgrade({
-      containerID: 3,
-      containerName: 'MainLeftDetail',
-      content: body,
+
+    await bridge.rebuildPageContainer(new RebuildPageContainer(config))
+  })
+}
+
+function sessionText(): string {
+  const minutes = Math.floor(state.sessionSeconds / 60)
+  const seconds = state.sessionSeconds % 60
+  const progress = Math.max(0, Math.min(20, Math.round((state.sessionSeconds / 300) * 20)))
+  const bar = `${'='.repeat(progress)}${'-'.repeat(20 - progress)}`
+
+  return [
+    'ER BACPACER',
+    '',
+    `Time left: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`,
+    `[${bar}]`,
+    '',
+    state.running ? 'Tap: pause timer' : 'Tap: resume timer',
+    'Swipe up: +1 min',
+    'Swipe down: -1 min',
+    'Double-tap: back to menu',
+    '',
+    `Last event: ${state.lastEvent}`,
+  ].join('\n')
+}
+
+export async function showMenu(): Promise<void> {
+  state.screen = 'menu'
+
+  await renderPage({
+    containerTotalNum: 1,
+    listObject: [
+      new ListContainerProperty({
+        containerID: 1,
+        containerName: 'menu',
+        xPosition: 0,
+        yPosition: 0,
+        width: WIDTH,
+        height: HEIGHT,
+        borderWidth: 1,
+        borderColor: 6,
+        borderRadius: 4,
+        paddingLength: 4,
+        isEventCapture: 1,
+        itemContainer: new ListItemContainerProperty({
+          itemCount: MENU_ITEMS.length,
+          itemWidth: WIDTH - 10,
+          isItemSelectBorderEn: 1,
+          itemName: MENU_ITEMS,
+        }),
+      }),
+    ],
+  })
+
+  appendEventLog('Rendered menu')
+}
+
+export async function showSession(): Promise<void> {
+  state.screen = 'session'
+
+  await renderPage({
+    containerTotalNum: 1,
+    textObject: [
+      new TextContainerProperty({
+        containerID: 1,
+        containerName: 'main',
+        content: sessionText(),
+        xPosition: 0,
+        yPosition: 0,
+        width: WIDTH,
+        height: HEIGHT,
+        isEventCapture: 1,
+        paddingLength: 8,
+        borderWidth: 1,
+        borderColor: 4,
+      }),
+    ],
+  })
+
+  appendEventLog('Rendered session screen')
+}
+
+export async function upgradeSessionText(): Promise<void> {
+  if (state.screen !== 'session') return
+  const bridge = getBridge()
+  if (!bridge) return
+
+  await runBridgeTask(async () => {
+    await bridge.textContainerUpgrade(new TextContainerUpgrade({
+      containerID: 1,
+      containerName: 'main',
+      content: sessionText(),
     }))
-  }
-
-  await b.textContainerUpgrade(new TextContainerUpgrade({
-    containerID: 1,
-    containerName: 'TopLeft',
-    content: breadcrumb,
-  }))
-
-  await updateRightDynamicContentOnlyInternal()
-}
-
-async function showMenuListLayout(items: string[], name: string): Promise<boolean> {
-  const textContainers = buildStaticTextContainers()
-
-  const menuList = new ListContainerProperty({
-    containerID: 3,
-    containerName: name,
-    xPosition: 0,
-    yPosition: MAIN_Y,
-    width: MAIN_WIDTH,
-    height: MAIN_HEIGHT,
-    paddingLength: 4,
-    isEventCapture: 1,
-    itemContainer: new ListItemContainerProperty({
-      itemCount: items.length,
-      itemWidth: MAIN_WIDTH - 10,
-      isItemSelectBorderEn: 1,
-      itemName: items,
-    }),
-  })
-
-  return applyPage({
-    containerTotalNum: 6,
-    textObject: textContainers,
-    listObject: [menuList],
   })
 }
 
-async function showMainMenuListLayout(): Promise<boolean> {
-  return showMenuListLayout(MENU_ITEMS.map(item => item.label || 'Home'), 'MainLeftMenu')
-}
+export async function showAbout(): Promise<void> {
+  state.screen = 'about'
 
-async function showAddDrinkMenuListLayout(): Promise<boolean> {
-  return showMenuListLayout(ADD_DRINK_MENU_ITEMS, 'AddDrinkMenu')
-}
-
-async function showDetailLayout(body: string): Promise<boolean> {
-  const textContainers = [
-    ...buildStaticTextContainers(),
-    new TextContainerProperty({
-      containerID: 3,
-      containerName: 'MainLeftDetail',
-      content: body,
-      xPosition: 0,
-      yPosition: MAIN_Y,
-      width: MAIN_WIDTH,
-      height: MAIN_HEIGHT,
-      isEventCapture: 1,
-    }),
-  ]
-
-  return applyPage({
-    containerTotalNum: 6,
-    textObject: textContainers,
+  await renderPage({
+    containerTotalNum: 1,
+    textObject: [
+      new TextContainerProperty({
+        containerID: 1,
+        containerName: 'about',
+        content: [
+          'ER BACPACER',
+          '',
+          'A focus timer for Even Realities glasses.',
+          '',
+          'Controls',
+          'Tap: select or pause/resume',
+          'Swipe: adjust timer',
+          'Double-tap: back',
+          '',
+          'Built with Even Hub SDK 0.0.10+',
+          `Version: ${typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'dev'}`,
+        ].join('\n'),
+        xPosition: 0,
+        yPosition: 0,
+        width: WIDTH,
+        height: HEIGHT,
+        isEventCapture: 1,
+        paddingLength: 8,
+      }),
+    ],
   })
-}
 
-async function showResetConfirmListLayout(): Promise<boolean> {
-  return showMenuListLayout(RESET_CONFIRM_MENU_ITEMS, 'ResetConfirmMenu')
-}
-
-export function menuItemFromIndex(index: number): MenuItem | undefined {
-  return MENU_ITEMS[index]?.id
-}
-
-export function addDrinkSubmenuItemFromIndex(index: number): string | undefined {
-  return ADD_DRINK_MENU_ITEMS[index]
-}
-
-export function resetConfirmChoiceFromIndex(index: number): 'yes' | 'no' | undefined {
-  if (index === 0) return 'no'
-  if (index === 1) return 'yes'
-  return undefined
-}
-
-function getMenuItemLabel(item: MenuItem): string {
-  if (item === 'setupdrink') return 'Settings > Summary'
-  const found = MENU_ITEMS.find((menuItem) => menuItem.id === item)
-  return found?.label ?? 'Menu'
-}
-
-function getScreenBody(item: MenuItem): string {
-  switch (item) {
-    case 'home':
-      return ''
-    case 'adddrink':
-      return `Add drink\nVolume: ${state.drinkMl} ml\nStrength: ${state.drinkPercent}%`
-    case 'setupdrink':
-      return 'Bacpacer v1.0'
-    case 'reset':
-      return 'Reset selected'
-  }
-}
-
-export async function initMenu(): Promise<void> {
-  await runSerializedRender(async () => {
-    const ok = await showMainMenuListLayout()
-    if (ok) {
-      currentLayoutMode = 'main-menu'
-    }
-  })
-}
-
-export async function updateTopRightCountdownOnly(): Promise<void> {
-  await runSerializedRender(updateTopRightCountdownOnlyInternal)
-}
-
-export async function updateRightDynamicContentOnly(): Promise<void> {
-  await runSerializedRender(updateRightDynamicContentOnlyInternal)
-}
-
-export async function updateMenuDisplay(): Promise<void> {
-  await runSerializedRender(updateMenuDisplayInternal)
-}
-
-export async function showContent(): Promise<void> {
-  await updateMenuDisplay()
-}
-
-export async function updateDisplay(): Promise<void> {
-  await showContent()
-}
-
-export function resetRendererSession(): void {
-  containersCreated = false
-  currentLayoutMode = null
-  renderQueue = Promise.resolve()
+  appendEventLog('Rendered about screen')
 }

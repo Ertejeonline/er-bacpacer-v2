@@ -1,21 +1,50 @@
-# Bacpacer
+# ER Bacpacer
 
-A pacer app for Evenrealities G2 glasses.
+A production-style starter app for Even Realities glasses using the Even Hub SDK.
 
-## Development
+## What this app does
 
-1. Install dependencies: `npm install`
-2. Start dev server: `npm run dev`
-3. Build: `npm run build`
-4. Pack: `npm run pack`
+- Presents a native list menu on glasses
+- Runs a 5-minute focus timer session
+- Uses tap, double-tap, and scroll gestures
+- Updates timer text with `textContainerUpgrade` for smooth refreshes
+- Handles lifecycle cleanup on app exit
 
-## Features
+## Project layout
 
-- Display tempo/pace information
-- Configurable BPM (beats per minute)
-- Visual and haptic feedback options
+- `g2/`: glasses runtime logic
+- `_shared/`: shared app module types and log helper
+- `src/`: web loader and small status panel
+- `app.json`: Even Hub app manifest
 
-## Building for Device
+## Quickstart
 
-1. Run `npm run pack` to create a `.ehpk` package
-2. Deploy to Even G2 glasses using the Even Hub CLI
+```bash
+npm install
+npm run dev
+npm run simulate
+```
+
+In another terminal, you can also generate a QR for sideloading:
+
+```bash
+npm run qr
+```
+
+## Build and package
+
+```bash
+npm run build
+npm run check:manifest
+npm run pack
+```
+
+This creates `er-bacpacer.ehpk` in the project root.
+
+## Best-practice notes used
+
+- Waits for `waitForEvenAppBridge()` before any SDK calls
+- Calls `createStartUpPageContainer` once, then uses `rebuildPageContainer`
+- Serializes bridge operations to avoid concurrent BLE calls
+- Uses protobuf-safe defaults for event values
+- Cleans up listeners and stops hardware features on exit

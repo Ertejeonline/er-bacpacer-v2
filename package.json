@@ -1,24 +1,24 @@
 {
     "name": "er-bacpacer",
-    "version": "1.0.0",
+    "private": true,
+    "version": "0.1.0",
+    "type": "module",
     "scripts": {
         "dev": "vite --host 0.0.0.0 --port 5173",
         "build": "vite build",
         "preview": "vite preview",
+        "simulate": "evenhub-simulator http://localhost:5173",
         "qr": "evenhub qr --http --port 5173",
-        "simulator": "evenhub-simulator http://localhost:5173",
-        "pack": "npm run build && evenhub pack app.json dist -o bacpacer.ehpk"
+        "check:manifest": "evenhub pack app.json dist --check",
+        "pack": "npm run build && evenhub pack app.json dist -o er-bacpacer.ehpk"
     },
     "dependencies": {
-        "@evenrealities/even_hub_sdk": "^0.0.10",
-        "even-toolkit": "^1.0.1",
-        "react": "^19.2.4",
-        "react-dom": "^19.2.4"
+        "@evenrealities/even_hub_sdk": "^0.0.10"
     },
     "devDependencies": {
         "@evenrealities/evenhub-cli": "^0.1.11",
-        "@types/react": "^19.0.0",
-        "@types/react-dom": "^19.0.0",
+        "@evenrealities/evenhub-simulator": "^0.7.1",
+        "@evenrealities/pretext": "^0.1.4",
         "typescript": "^5.9.3",
         "vite": "^6.0.0"
     }
