@@ -38,6 +38,7 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
   let connected = false
   let connecting = false
   let appInForeground = true
+  let exitDialogPending = false
   let unsubscribeEvenHubEvent: (() => void) | null = null
   let refreshTimerId: number | null = null
   let teardownRegistered = false
@@ -60,6 +61,20 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
   const refreshDisplayIfActive = () => {
     if (!connected || !appInForeground) return
     void updateMenuDisplay()
+  }
+
+  const logMenuContext = (stage: string, extra?: string) => {
+    const suffix = extra ? ` ${extra}` : ''
+    appendEventLog(
+      `MenuFlow: ${stage} menuVisible=${String(state.menuVisible)} addSub=${String(state.addDrinkSubmenuVisible)} resetConfirm=${String(state.resetConfirmVisible)} current=${state.currentMenuItem}${suffix}`,
+    )
+  }
+
+  const inferForegroundFromInput = () => {
+    if (!connected || appInForeground) return
+    appInForeground = true
+    appendEventLog('Lifecycle: inferred foreground from input')
+    startRefreshTimer()
   }
 
   const cleanupBridgeListeners = () => {
@@ -116,13 +131,23 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
           console.log('EvenHub event:', event)
 
           if (event.listEvent) {
+            inferForegroundFromInput()
+            exitDialogPending = false
             if (!state.menuVisible) return
             const eventType = event.listEvent.eventType ?? 0
             if (eventType === OsEventTypeList.CLICK_EVENT) {
               const index = event.listEvent.currentSelectItemIndex ?? 0
+              const itemName = event.listEvent.currentSelectItemName ?? ''
+              logMenuContext('list-click', `idx=${index} name="${itemName}"`)
+
               if (state.resetConfirmVisible) {
                 const choice = resetConfirmChoiceFromIndex(index)
-                if (!choice) return
+                if (!choice) {
+                  appendEventLog(`MenuFlow: reset-choice unresolved idx=${index} name="${itemName}"`)
+                  return
+                }
+
+                appendEventLog(`MenuFlow: reset-choice=${choice} idx=${index} name="${itemName}"`)
 
                 setResetConfirmChoice(choice)
                 if (choice === 'yes') {
@@ -132,6 +157,7 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
 
                 setResetConfirmVisible(false)
                 setAddDrinkSubmenuVisible(false)
+                logMenuContext('reset-confirm-close', `choice=${choice}`)
                 refreshDisplayIfActive()
                 return
               }
@@ -139,6 +165,7 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
               if (state.addDrinkSubmenuVisible) {
                 const submenuItem = addDrinkSubmenuItemFromIndex(index)
                 if (submenuItem) {
+                  appendEventLog(`MenuFlow: add-submenu-click item="${submenuItem}" idx=${index}`)
                   if (submenuItem === 'Add drink') {
                     const entry = storeCurrentDrink()
                     appendEventLog(`Drink stored: ${entry.ml} ml @ ${entry.percent}% (${formatDrinkEntryTime(entry.timestampMs)})`)
@@ -156,22 +183,29 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
                 }
               } else {
                 const selected = menuItemFromIndex(index)
+                appendEventLog(`MenuFlow: main-select resolved=${selected ?? 'undefined'} idx=${index} name="${itemName}"`)
                 if (selected === 'adddrink') {
+                  logMenuContext('open-add-submenu-before')
                   setResetConfirmVisible(false)
                   setAddDrinkSubmenuVisible(true)
+                  logMenuContext('open-add-submenu-after')
                   refreshDisplayIfActive()
                   return
                 }
                 if (selected === 'reset') {
+                  logMenuContext('open-reset-confirm-before')
                   setAddDrinkSubmenuVisible(false)
                   setResetConfirmChoice('no')
                   setResetConfirmVisible(true)
+                  logMenuContext('open-reset-confirm-after')
                   refreshDisplayIfActive()
                   return
                 }
                 if (selected) {
+                  logMenuContext('open-detail-before', `selected=${selected}`)
                   setResetConfirmVisible(false)
                   setMenuItem(selected)
+                  logMenuContext('open-detail-after', `selected=${selected}`)
                   refreshDisplayIfActive()
                 }
               }
@@ -184,6 +218,7 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
             if (eventType === OsEventTypeList.FOREGROUND_ENTER_EVENT) {
               appendEventLog('Lifecycle: foreground enter')
               appInForeground = true
+              exitDialogPending = false
               // Real glasses may invalidate page/container state while another
               // system surface is shown over the app; force a full render sync.
               resetRendererSession()
@@ -200,6 +235,7 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
             if (eventType === OsEventTypeList.ABNORMAL_EXIT_EVENT || eventType === OsEventTypeList.SYSTEM_EXIT_EVENT) {
               appendEventLog(`Lifecycle: exit event=${String(eventType)}`)
               appInForeground = false
+              exitDialogPending = false
               cleanupBridgeListeners()
               resetRendererSession()
               connected = false
@@ -207,13 +243,18 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
               return
             }
 
+            // Some firmware paths can miss FOREGROUND_ENTER after overlay dismissal.
+            inferForegroundFromInput()
+
             if (eventType === OsEventTypeList.DOUBLE_CLICK_EVENT) {
               const atRootMenu = state.menuVisible && !state.addDrinkSubmenuVisible && !state.resetConfirmVisible
               if (atRootMenu) {
+                exitDialogPending = true
                 appendEventLog('Menu double-tap: shutDownPageContainer(1)')
                 void bridge.shutDownPageContainer(1)
                 return
               }
+              exitDialogPending = false
               showMenu()
             }
           }
@@ -221,7 +262,8 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
 
         await initApp(bridge)
         connected = true
-  appInForeground = true
+          appInForeground = true
+          exitDialogPending = false
         startRefreshTimer()
         setStatus('Connected. Swipe to focus, click to open, double-click to go back.')
         appendEventLog('Bridge connected - list menu ready')

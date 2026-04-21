@@ -237,6 +237,9 @@ async function updateMenuDisplayInternal(): Promise<void> {
     : (state.resetConfirmVisible ? 'reset-confirm' : (state.addDrinkSubmenuVisible ? 'adddrink-menu' : 'main-menu'))
 
   const needsFullLayoutRender = !containersCreated || targetLayoutMode !== currentLayoutMode
+  appendEventLog(
+    `Renderer: menuDisplay target=${targetLayoutMode} current=${currentLayoutMode ?? 'none'} fullRender=${String(needsFullLayoutRender)} menuVisible=${String(state.menuVisible)} addSub=${String(state.addDrinkSubmenuVisible)} resetConfirm=${String(state.resetConfirmVisible)} currentItem=${state.currentMenuItem}`,
+  )
 
   if (needsFullLayoutRender) {
     let rendered = false
@@ -253,8 +256,10 @@ async function updateMenuDisplayInternal(): Promise<void> {
 
     if (rendered) {
       currentLayoutMode = targetLayoutMode
+      appendEventLog(`Renderer: layout-applied mode=${targetLayoutMode}`)
     } else {
       // Keep previous mode when render fails to avoid UI/state desync.
+      appendEventLog(`Renderer: layout-failed mode=${targetLayoutMode}`)
       return
     }
   } else if (targetLayoutMode === 'detail') {
