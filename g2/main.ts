@@ -132,7 +132,10 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
 
           if (event.listEvent) {
             inferForegroundFromInput()
-            exitDialogPending = false
+            if (exitDialogPending) {
+              appendEventLog('Lifecycle: exit dialog dismissed by user input')
+              exitDialogPending = false
+            }
             if (!state.menuVisible) return
             const eventType = event.listEvent.eventType ?? 0
             if (eventType === OsEventTypeList.CLICK_EVENT) {
@@ -218,11 +221,15 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
             if (eventType === OsEventTypeList.FOREGROUND_ENTER_EVENT) {
               appendEventLog('Lifecycle: foreground enter')
               appInForeground = true
-              exitDialogPending = false
-              // Real glasses may invalidate page/container state while another
-              // system surface is shown over the app; force a full render sync.
-              resetRendererSession()
               startRefreshTimer()
+
+              if (exitDialogPending) {
+                // Returning from system exit dialog can still be in transition.
+                // Avoid forcing full sync until actual app interaction resumes.
+                appendEventLog('Lifecycle: resume from exit dialog (defer render)')
+                return
+              }
+
               refreshDisplayIfActive()
               return
             }
