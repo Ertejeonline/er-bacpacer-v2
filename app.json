@@ -1,16 +1,16 @@
 {
-    "package_id": "com.example.erbacpacer",
+    "package_id": "com.er.bacpacer",
     "edition": "202601",
-    "name": "ER Bacpacer",
-    "version": "0.1.0",
-    "min_app_version": "2.0.0",
+    "name": "Bacpacer",
+    "version": "0.2.9",
+    "min_app_version": "0.1.0",
     "min_sdk_version": "0.0.10",
-    "entrypoint": "index.html",
-    "permissions": [],
     "supported_languages": [
         "en"
     ],
-    "tagline": "Focus timer for Even Realities glasses",
-    "description": "A simple focus timer app built with Even Hub SDK best practices.",
-    "author": "local"
+    "tagline": "A drinking pacer for Even G2 glasses",
+    "description": "If you want to maintain a steady drinking pace, log what you drink and see how long you have to wait for your next one.",
+    "author": "Ertehe",
+    "entrypoint": "index.html",
+    "permissions": []
 }
