@@ -74,7 +74,7 @@ function getTopRightContent(): string {
   const nextDrinkAtMs = latest.timestampMs + intervalMinutes * 60_000
   const remainingMinutes = Math.round((nextDrinkAtMs - Date.now()) / 60_000)
   if (remainingMinutes <= 0) return ''
-  return `${remainingMinutes} minutes left`
+  return `${remainingMinutes}`
 }
 
 function getMainRightContent(): string {
@@ -125,7 +125,7 @@ function buildStaticTextContainers(): TextContainerProperty[] {
     new TextContainerProperty({
       containerID: 5,
       containerName: 'BottomLeft',
-      content: 'BottomLeft',
+      content: '',
       xPosition: 0,
       yPosition: SCREEN_HEIGHT - SIDE_HEIGHT,
       width: SIDE_WIDTH,
@@ -134,7 +134,7 @@ function buildStaticTextContainers(): TextContainerProperty[] {
     new TextContainerProperty({
       containerID: 6,
       containerName: 'BottomRight',
-      content: 'BottomRight',
+      content: '',
       xPosition: SIDE_WIDTH,
       yPosition: SCREEN_HEIGHT - SIDE_HEIGHT,
       width: SIDE_WIDTH,
