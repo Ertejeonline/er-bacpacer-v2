@@ -6,7 +6,7 @@ import { initMenu, updateMenuDisplay } from './renderer'
 
 export async function initApp(appBridge: EvenAppBridge): Promise<void> {
   setBridge(appBridge)
-  loadPersistedState()
+  await loadPersistedState()
 
   appendEventLog('Bacpacer: initialised')
   await initMenu()

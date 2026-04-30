@@ -53,7 +53,7 @@ export function setBridge(b: EvenAppBridge): void {
   _bridge = b
 }
 
-function canUseStorage(): boolean {
+function canUseBrowserStorage(): boolean {
   return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
 }
 
@@ -77,21 +77,32 @@ function toPersistedState(): PersistedState {
   }
 }
 
-export function savePersistedState(): void {
-  if (!canUseStorage()) return
+function savePersistedStateToBrowserStorage(serialized: string): void {
+  if (!canUseBrowserStorage()) return
   try {
-    window.localStorage.setItem(PERSISTENCE_KEY, JSON.stringify(toPersistedState()))
+    window.localStorage.setItem(PERSISTENCE_KEY, serialized)
   } catch (err) {
-    console.warn('[bacpacer] failed to save persisted state', err)
+    console.warn('[bacpacer] failed to save persisted state to browser storage', err)
   }
 }
 
-export function loadPersistedState(): void {
-  if (!canUseStorage()) return
-  try {
-    const raw = window.localStorage.getItem(PERSISTENCE_KEY)
-    if (!raw) return
+export function savePersistedState(): void {
+  const serialized = JSON.stringify(toPersistedState())
+  const bridge = getBridge()
 
+  if (bridge) {
+    void bridge.setLocalStorage(PERSISTENCE_KEY, serialized).catch((err) => {
+      console.warn('[bacpacer] failed to save persisted state to bridge storage', err)
+      savePersistedStateToBrowserStorage(serialized)
+    })
+    return
+  }
+
+  savePersistedStateToBrowserStorage(serialized)
+}
+
+function applyHydratedState(raw: string): void {
+  try {
     const parsed = JSON.parse(raw) as Partial<PersistedState>
 
     if (typeof parsed.bpm === 'number') {
@@ -130,7 +141,39 @@ export function loadPersistedState(): void {
       }
     }
   } catch (err) {
-    console.warn('[bacpacer] failed to load persisted state', err)
+    console.warn('[bacpacer] failed to parse persisted state', err)
+  }
+}
+
+function loadPersistedStateFromBrowserStorage(): void {
+  if (!canUseBrowserStorage()) return
+
+  try {
+    const raw = window.localStorage.getItem(PERSISTENCE_KEY)
+    if (!raw) return
+    applyHydratedState(raw)
+  } catch (err) {
+    console.warn('[bacpacer] failed to load persisted state from browser storage', err)
+  }
+}
+
+export async function loadPersistedState(): Promise<void> {
+  const bridge = getBridge()
+  if (!bridge) {
+    loadPersistedStateFromBrowserStorage()
+    return
+  }
+
+  try {
+    const raw = await bridge.getLocalStorage(PERSISTENCE_KEY)
+    if (!raw) {
+      loadPersistedStateFromBrowserStorage()
+      return
+    }
+    applyHydratedState(raw)
+  } catch (err) {
+    console.warn('[bacpacer] failed to load persisted state from bridge storage', err)
+    loadPersistedStateFromBrowserStorage()
   }
 }
 

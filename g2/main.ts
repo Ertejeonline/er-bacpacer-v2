@@ -59,8 +59,9 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
   }
 
   const startRefreshTimer = () => {
-    if (!connected || !appInForeground) return
+    if (!connected) return
     stopRefreshTimer()
+    void updateTopRightCountdownOnly()
     refreshTimerId = window.setInterval(() => {
       void updateTopRightCountdownOnly()
     }, 60_000)
@@ -265,7 +266,6 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
                 return
               }
               appInForeground = false
-              stopRefreshTimer()
               return
             }
             if (eventType === OsEventTypeList.ABNORMAL_EXIT_EVENT || eventType === OsEventTypeList.SYSTEM_EXIT_EVENT) {
