@@ -16,6 +16,8 @@
 
         <button id="resetBtn" style="display:none">Reset Drinks</button>
 
+        <button id="drinksLogBtn" style="display:none">Drinks log</button>
+
         <div class="setting-row"></div>
 
         <p id="status" class="text-small-body"></p>
@@ -31,6 +33,16 @@
             <div class="modal-actions">
                 <button id="confirmResetBtn" class="danger-btn">Reset</button>
                 <button id="cancelResetBtn">Cancel</button>
+            </div>
+        </div>
+    </div>
+    <div id="drinksLogModal" class="modal-overlay hidden" role="dialog" aria-modal="true"
+        aria-labelledby="drinksLogTitle">
+        <div class="modal-card modal-card--wide">
+            <h2 id="drinksLogTitle" class="text-medium-title">Drinks log</h2>
+            <div id="drinksLogList" class="drinks-log-list"></div>
+            <div class="modal-actions">
+                <button id="closeDrinksLogBtn">Close</button>
             </div>
         </div>
     </div>

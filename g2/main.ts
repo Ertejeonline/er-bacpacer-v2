@@ -307,6 +307,8 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
       setStatus('Drink history reset')
       appendEventLog('Drink history reset from phone UI')
     },
+
+    getDrinkEntries: () => [...state.drinkEntries],
   }
 }
 

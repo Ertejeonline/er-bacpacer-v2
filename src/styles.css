@@ -111,3 +111,51 @@ button:disabled {
 .danger-btn {
   background: var(--color-negative);
 }
+
+.modal-card--wide {
+  width: min(480px, 100%);
+}
+
+.drinks-log-list {
+  max-height: 320px;
+  overflow-y: auto;
+  margin-top: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.drinks-log-list:empty::after {
+  content: 'No drinks logged yet.';
+  display: block;
+  padding: 16px;
+  text-align: center;
+  color: var(--color-text-dim);
+  font-size: 14px;
+}
+
+.drink-log-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 14px;
+  gap: 20px;
+}
+
+.drink-log-row:last-child {
+  border-bottom: none;
+}
+
+.drink-log-time {
+  color: var(--color-text-dim);
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 64px;
+}
+
+.drink-log-details {
+  font-weight: 500;
+  flex: 1;
+  text-align: right;
+}

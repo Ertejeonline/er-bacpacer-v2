@@ -14,6 +14,10 @@ async function boot() {
   const confirmResetModal = document.getElementById('confirmResetModal')
   const confirmResetBtn = document.getElementById('confirmResetBtn') as HTMLButtonElement | null
   const cancelResetBtn = document.getElementById('cancelResetBtn') as HTMLButtonElement | null
+  const drinksLogBtn = document.getElementById('drinksLogBtn') as HTMLButtonElement | null
+  const drinksLogModal = document.getElementById('drinksLogModal')
+  const drinksLogList = document.getElementById('drinksLogList')
+  const closeDrinksLogBtn = document.getElementById('closeDrinksLogBtn') as HTMLButtonElement | null
 
   document.title = `${app.name} – Even G2`
   updateStatus(app.initialStatus ?? `${app.name} app ready`)
@@ -62,6 +66,44 @@ async function boot() {
   confirmResetModal?.addEventListener('click', (event) => {
     if (event.target === confirmResetModal) {
       closeResetModal()
+    }
+  })
+
+  const openDrinksLog = () => {
+    if (!drinksLogModal || !drinksLogList || !actions.getDrinkEntries) return
+    const entries = actions.getDrinkEntries()
+    drinksLogList.innerHTML = ''
+    for (const entry of [...entries].reverse()) {
+      const row = document.createElement('div')
+      row.className = 'drink-log-row'
+      const d = new Date(entry.timestampMs)
+      const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      const timeEl = document.createElement('span')
+      timeEl.className = 'drink-log-time'
+      timeEl.textContent = time
+      const detailEl = document.createElement('span')
+      detailEl.className = 'drink-log-details'
+      detailEl.textContent = `${entry.ml} ml · ${entry.percent.toFixed(1)}%`
+      row.appendChild(timeEl)
+      row.appendChild(detailEl)
+      drinksLogList.appendChild(row)
+    }
+    drinksLogModal.classList.remove('hidden')
+  }
+
+  const closeDrinksLog = () => {
+    drinksLogModal?.classList.add('hidden')
+  }
+
+  if (actions.getDrinkEntries && drinksLogBtn) {
+    drinksLogBtn.style.display = ''
+    drinksLogBtn.addEventListener('click', openDrinksLog)
+  }
+
+  closeDrinksLogBtn?.addEventListener('click', closeDrinksLog)
+  drinksLogModal?.addEventListener('click', (event) => {
+    if (event.target === drinksLogModal) {
+      closeDrinksLog()
     }
   })
 
