@@ -86,6 +86,10 @@ button:disabled {
   z-index: 1000;
 }
 
+.modal-overlay.hidden {
+  display: none;
+}
+
 .modal-card {
   width: min(420px, 100%);
   background: var(--color-surface);
