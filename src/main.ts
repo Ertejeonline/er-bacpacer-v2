@@ -10,8 +10,6 @@ async function boot() {
   const module = await import('../g2/index')
   const app: AppModule = module.app ?? module.default
 
-  const connectBtn = document.getElementById('connectBtn') as HTMLButtonElement | null
-  const actionBtn = document.getElementById('actionBtn') as HTMLButtonElement | null
   const resetBtn = document.getElementById('resetBtn') as HTMLButtonElement | null
   const confirmResetModal = document.getElementById('confirmResetModal')
   const confirmResetBtn = document.getElementById('confirmResetBtn') as HTMLButtonElement | null
@@ -20,8 +18,6 @@ async function boot() {
   document.title = `${app.name} – Even G2`
   updateStatus(app.initialStatus ?? `${app.name} app ready`)
 
-  if (connectBtn && app.connectLabel) connectBtn.textContent = app.connectLabel
-  if (actionBtn && app.actionLabel) actionBtn.textContent = app.actionLabel
   if (resetBtn && app.resetLabel) resetBtn.textContent = app.resetLabel
 
   const actions = await app.createActions(updateStatus)
@@ -35,20 +31,6 @@ async function boot() {
     if (!confirmResetModal) return
     confirmResetModal.classList.add('hidden')
   }
-
-  connectBtn?.addEventListener('click', async () => {
-    connectBtn.disabled = true
-    try { await actions.connect() }
-    catch (e) { console.error(e); updateStatus('Connect failed') }
-    finally { connectBtn.disabled = false }
-  })
-
-  actionBtn?.addEventListener('click', async () => {
-    actionBtn.disabled = true
-    try { await actions.action() }
-    catch (e) { console.error(e); updateStatus('Action failed') }
-    finally { actionBtn.disabled = false }
-  })
 
   if (actions.reset && resetBtn) {
     resetBtn.style.display = ''
