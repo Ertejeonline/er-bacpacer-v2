@@ -14,7 +14,6 @@ const MENU_ITEMS: { id: MenuItem; label: string }[] = [
   { id: 'home', label: '' },
   { id: 'adddrink', label: 'Add drink' },
   { id: 'setupdrink', label: 'Summary' },
-  { id: 'reset', label: 'Reset' },
 ]
 
 const ADD_DRINK_MENU_ITEMS = [
@@ -25,13 +24,8 @@ const ADD_DRINK_MENU_ITEMS = [
   '- %',
 ]
 
-const RESET_CONFIRM_MENU_ITEMS = [
-  'No',
-  'Yes',
-]
-
 let containersCreated = false
-type LayoutMode = 'main-menu' | 'adddrink-menu' | 'reset-confirm' | 'detail'
+type LayoutMode = 'main-menu' | 'adddrink-menu' | 'detail'
 let currentLayoutMode: LayoutMode | null = null
 let renderQueue: Promise<void> = Promise.resolve()
 
@@ -229,16 +223,16 @@ async function updateMenuDisplayInternal(): Promise<void> {
   if (!b) return
 
   const breadcrumb = state.menuVisible
-    ? (state.resetConfirmVisible ? 'Are you sure?' : (state.addDrinkSubmenuVisible ? 'Add drink' : 'Menu'))
+    ? (state.addDrinkSubmenuVisible ? 'Add drink' : 'Menu')
     : `${getMenuItemLabel(state.currentMenuItem)}`
 
   const targetLayoutMode: LayoutMode = !state.menuVisible
     ? 'detail'
-    : (state.resetConfirmVisible ? 'reset-confirm' : (state.addDrinkSubmenuVisible ? 'adddrink-menu' : 'main-menu'))
+    : (state.addDrinkSubmenuVisible ? 'adddrink-menu' : 'main-menu')
 
   const needsFullLayoutRender = !containersCreated || targetLayoutMode !== currentLayoutMode
   appendEventLog(
-    `Renderer: menuDisplay target=${targetLayoutMode} current=${currentLayoutMode ?? 'none'} fullRender=${String(needsFullLayoutRender)} menuVisible=${String(state.menuVisible)} addSub=${String(state.addDrinkSubmenuVisible)} resetConfirm=${String(state.resetConfirmVisible)} currentItem=${state.currentMenuItem}`,
+    `Renderer: menuDisplay target=${targetLayoutMode} current=${currentLayoutMode ?? 'none'} fullRender=${String(needsFullLayoutRender)} menuVisible=${String(state.menuVisible)} addSub=${String(state.addDrinkSubmenuVisible)} currentItem=${state.currentMenuItem}`,
   )
 
   if (needsFullLayoutRender) {
@@ -246,8 +240,6 @@ async function updateMenuDisplayInternal(): Promise<void> {
     if (targetLayoutMode === 'detail') {
       const body = getScreenBody(state.currentMenuItem)
       rendered = await showDetailLayout(body)
-    } else if (targetLayoutMode === 'reset-confirm') {
-      rendered = await showResetConfirmListLayout()
     } else if (targetLayoutMode === 'adddrink-menu') {
       rendered = await showAddDrinkMenuListLayout()
     } else {
@@ -337,22 +329,12 @@ async function showDetailLayout(body: string): Promise<boolean> {
   })
 }
 
-async function showResetConfirmListLayout(): Promise<boolean> {
-  return showMenuListLayout(RESET_CONFIRM_MENU_ITEMS, 'ResetConfirmMenu')
-}
-
 export function menuItemFromIndex(index: number): MenuItem | undefined {
   return MENU_ITEMS[index]?.id
 }
 
 export function addDrinkSubmenuItemFromIndex(index: number): string | undefined {
   return ADD_DRINK_MENU_ITEMS[index]
-}
-
-export function resetConfirmChoiceFromIndex(index: number): 'yes' | 'no' | undefined {
-  if (index === 0) return 'no'
-  if (index === 1) return 'yes'
-  return undefined
 }
 
 function getMenuItemLabel(item: MenuItem): string {
@@ -369,8 +351,6 @@ function getScreenBody(item: MenuItem): string {
       return `Add drink\nVolume: ${state.drinkMl} ml\nStrength: ${state.drinkPercent}%`
     case 'setupdrink':
       return 'Bacpacer v1.0'
-    case 'reset':
-      return 'Reset selected'
   }
 }
 

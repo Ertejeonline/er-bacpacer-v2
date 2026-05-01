@@ -1,8 +1,7 @@
 // Application state management
 import type { EvenAppBridge } from '@evenrealities/even_hub_sdk'
 
-export type MenuItem = 'home' | 'adddrink' | 'setupdrink' | 'reset'
-export type ResetChoice = 'yes' | 'no'
+export type MenuItem = 'home' | 'adddrink' | 'setupdrink'
 
 export type DrinkEntry = {
   ml: number
@@ -32,8 +31,6 @@ export const state = {
   startupRendered: false,
   menuVisible: true, // new state to control menu visibility
   addDrinkSubmenuVisible: false,
-  resetConfirmVisible: false,
-  resetConfirmChoice: 'no' as ResetChoice,
   currentMenuItem: 'home' as MenuItem,
   focusedMenuItem: 'home' as MenuItem,
   pacerRunning: DEFAULT_PERSISTED_STATE.pacerRunning,
@@ -215,14 +212,6 @@ export function setFocusedMenuItem(item: MenuItem): void {
 
 export function setAddDrinkSubmenuVisible(visible: boolean): void {
   state.addDrinkSubmenuVisible = visible
-}
-
-export function setResetConfirmVisible(visible: boolean): void {
-  state.resetConfirmVisible = visible
-}
-
-export function setResetConfirmChoice(choice: ResetChoice): void {
-  state.resetConfirmChoice = choice
 }
 
 export function setBpm(value: number): void {

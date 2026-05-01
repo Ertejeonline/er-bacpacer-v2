@@ -10,8 +10,6 @@ import {
   setAddDrinkSubmenuVisible,
   setDrinkMl,
   setDrinkPercent,
-  setResetConfirmChoice,
-  setResetConfirmVisible,
   state,
   storeCurrentDrink,
 } from './state'
@@ -19,7 +17,6 @@ import {
   addDrinkSubmenuItemFromIndex,
   menuItemFromIndex,
   resetRendererSession,
-  resetConfirmChoiceFromIndex,
   updateMenuDisplay,
   updateTopRightCountdownOnly,
 } from './renderer'
@@ -75,7 +72,7 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
   const logMenuContext = (stage: string, extra?: string) => {
     const suffix = extra ? ` ${extra}` : ''
     appendEventLog(
-      `MenuFlow: ${stage} menuVisible=${String(state.menuVisible)} addSub=${String(state.addDrinkSubmenuVisible)} resetConfirm=${String(state.resetConfirmVisible)} current=${state.currentMenuItem}${suffix}`,
+      `MenuFlow: ${stage} menuVisible=${String(state.menuVisible)} addSub=${String(state.addDrinkSubmenuVisible)} current=${state.currentMenuItem}${suffix}`,
     )
   }
 
@@ -170,28 +167,6 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
               const itemName = event.listEvent.currentSelectItemName ?? ''
               logMenuContext('list-click', `idx=${index} name="${itemName}"`)
 
-              if (state.resetConfirmVisible) {
-                const choice = resetConfirmChoiceFromIndex(index)
-                if (!choice) {
-                  appendEventLog(`MenuFlow: reset-choice unresolved idx=${index} name="${itemName}"`)
-                  return
-                }
-
-                appendEventLog(`MenuFlow: reset-choice=${choice} idx=${index} name="${itemName}"`)
-
-                setResetConfirmChoice(choice)
-                if (choice === 'yes') {
-                  clearDrinkEntries()
-                  appendEventLog('Drink history reset')
-                }
-
-                setResetConfirmVisible(false)
-                setAddDrinkSubmenuVisible(false)
-                logMenuContext('reset-confirm-close', `choice=${choice}`)
-                refreshDisplayIfActive()
-                return
-              }
-
               if (state.addDrinkSubmenuVisible) {
                 const submenuItem = addDrinkSubmenuItemFromIndex(index)
                 if (submenuItem) {
@@ -216,24 +191,13 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
                 appendEventLog(`MenuFlow: main-select resolved=${selected ?? 'undefined'} idx=${index} name="${itemName}"`)
                 if (selected === 'adddrink') {
                   logMenuContext('open-add-submenu-before')
-                  setResetConfirmVisible(false)
                   setAddDrinkSubmenuVisible(true)
                   logMenuContext('open-add-submenu-after')
                   refreshDisplayIfActive()
                   return
                 }
-                if (selected === 'reset') {
-                  logMenuContext('open-reset-confirm-before')
-                  setAddDrinkSubmenuVisible(false)
-                  setResetConfirmChoice('no')
-                  setResetConfirmVisible(true)
-                  logMenuContext('open-reset-confirm-after')
-                  refreshDisplayIfActive()
-                  return
-                }
                 if (selected) {
                   logMenuContext('open-detail-before', `selected=${selected}`)
-                  setResetConfirmVisible(false)
                   setMenuItem(selected)
                   logMenuContext('open-detail-after', `selected=${selected}`)
                   refreshDisplayIfActive()
@@ -284,7 +248,7 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
             inferForegroundFromInput()
 
             if (eventType === OsEventTypeList.DOUBLE_CLICK_EVENT) {
-              const atRootMenu = state.menuVisible && !state.addDrinkSubmenuVisible && !state.resetConfirmVisible
+              const atRootMenu = state.menuVisible && !state.addDrinkSubmenuVisible
               if (atRootMenu) {
                 exitDialogPending = true
                 scheduleExitDialogRecovery()
@@ -324,14 +288,25 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
       await updateDisplay()
       setStatus('Display updated')
     },
+
+    reset: async () => {
+      if (!connected) {
+        setStatus('Not connected')
+        return
+      }
+
+      clearDrinkEntries()
+      await updateMenuDisplay()
+      void updateTopRightCountdownOnly()
+      setStatus('Drink history reset')
+      appendEventLog('Drink history reset from phone UI')
+    },
   }
 }
 
 async function showMenu(): Promise<void> {
   state.menuVisible = true
   setAddDrinkSubmenuVisible(false)
-  setResetConfirmVisible(false)
-  setResetConfirmChoice('no')
   setFocusedMenuItem(state.currentMenuItem)
   await updateMenuDisplay()
 }

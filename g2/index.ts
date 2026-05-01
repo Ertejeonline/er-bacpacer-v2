@@ -6,6 +6,7 @@ export const app: AppModule = {
   name: 'Bacpacer',
   connectLabel: 'Connect',
   actionLabel: 'Start',
+  resetLabel: 'Reset Drinks',
   initialStatus: 'Bacpacer ready',
   createActions: createBacpacerActions,
 }
