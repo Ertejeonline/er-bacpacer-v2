@@ -33,6 +33,8 @@ const SCREEN_WIDTH = 576
 const SCREEN_HEIGHT = 288
 const SIDE_WIDTH = SCREEN_WIDTH / 2
 const SIDE_HEIGHT = 30
+const TOP_RIGHT_WIDTH = 72
+const TOP_RIGHT_X = SCREEN_WIDTH - TOP_RIGHT_WIDTH
 const MAIN_Y = SIDE_HEIGHT
 const MAIN_HEIGHT = SCREEN_HEIGHT - 2 * SIDE_HEIGHT
 const MAIN_WIDTH = SCREEN_WIDTH / 2
@@ -102,9 +104,9 @@ function buildStaticTextContainers(): TextContainerProperty[] {
       containerID: 2,
       containerName: 'TopRight',
       content: getTopRightContent(),
-      xPosition: SIDE_WIDTH,
+      xPosition: TOP_RIGHT_X,
       yPosition: 0,
-      width: SIDE_WIDTH,
+      width: TOP_RIGHT_WIDTH,
       height: SIDE_HEIGHT,
     }),
     new TextContainerProperty({
