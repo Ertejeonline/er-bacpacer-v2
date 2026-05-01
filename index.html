@@ -59,6 +59,31 @@
         </div>
     </div>
 
+    <div id="editDrinkModal" class="modal-overlay hidden" role="dialog" aria-modal="true"
+        aria-labelledby="editDrinkTitle">
+        <div class="modal-card">
+            <h2 id="editDrinkTitle" class="text-medium-title">Edit drink</h2>
+            <div class="form-grid">
+                <label class="field-block" for="editDrinkTimeInput">
+                    <span class="field-label">Time</span>
+                    <input id="editDrinkTimeInput" class="field-input" type="time" />
+                </label>
+                <label class="field-block" for="editDrinkMlInput">
+                    <span class="field-label">Amount (ml)</span>
+                    <input id="editDrinkMlInput" class="field-input" type="number" min="0" max="2000" step="25" />
+                </label>
+                <label class="field-block" for="editDrinkPercentInput">
+                    <span class="field-label">Alcohol %</span>
+                    <input id="editDrinkPercentInput" class="field-input" type="number" min="0" max="100" step="0.5" />
+                </label>
+            </div>
+            <div class="modal-actions">
+                <button id="saveEditDrinkBtn">Save</button>
+                <button id="cancelEditDrinkBtn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module" src="/src/main.ts"></script>
 </body>
 

@@ -116,6 +116,32 @@ button:disabled {
   width: min(480px, 100%);
 }
 
+.form-grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.field-block {
+  display: grid;
+  gap: 6px;
+}
+
+.field-label {
+  font-size: 14px;
+  color: var(--color-text-dim);
+}
+
+.field-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface-secondary);
+  color: var(--color-text);
+  font: inherit;
+}
+
 .drinks-log-list {
   max-height: 320px;
   overflow-y: auto;
@@ -141,10 +167,17 @@ button:disabled {
   border-bottom: 1px solid var(--color-border);
   font-size: 14px;
   gap: 20px;
+  cursor: pointer;
 }
 
 .drink-log-row:last-child {
   border-bottom: none;
+}
+
+.drink-log-row:hover,
+.drink-log-row:focus-visible {
+  background: var(--color-surface-secondary);
+  outline: none;
 }
 
 .drink-log-time {

@@ -13,6 +13,7 @@ import {
   setDrinkPercent,
   state,
   storeCurrentDrink,
+  updateDrinkEntry,
 } from './state'
 import {
   addDrinkSubmenuItemFromIndex,
@@ -317,6 +318,15 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
 
       setStatus('Drink removed from log')
       appendEventLog(`Drink removed from phone UI: timestamp=${timestampMs}`)
+    },
+
+    updateDrinkEntry: (originalTimestampMs, nextEntry) => {
+      const updated = updateDrinkEntry(originalTimestampMs, nextEntry)
+      if (!updated) return false
+
+      setStatus('Drink updated')
+      appendEventLog(`Drink updated from phone UI: from=${originalTimestampMs} to=${nextEntry.timestampMs} ml=${nextEntry.ml} abv=${nextEntry.percent}`)
+      return true
     },
   }
 }

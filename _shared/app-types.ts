@@ -12,6 +12,7 @@ export type AppActions = {
   reset?: () => Promise<void>
   getDrinkEntries?: () => DrinkEntry[]
   removeDrinkEntry?: (timestampMs: number) => void
+  updateDrinkEntry?: (originalTimestampMs: number, nextEntry: DrinkEntry) => boolean
 }
 
 export type AppModule = {

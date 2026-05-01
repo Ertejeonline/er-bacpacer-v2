@@ -263,6 +263,26 @@ export function removeDrinkEntry(timestampMs: number): boolean {
   return true
 }
 
+export function updateDrinkEntry(originalTimestampMs: number, nextEntry: DrinkEntry): boolean {
+  const index = state.drinkEntries.findIndex((entry) => entry.timestampMs === originalTimestampMs)
+  if (index < 0) {
+    return false
+  }
+
+  const updatedEntry: DrinkEntry = {
+    ml: clampNumber(nextEntry.ml, 0, 2000),
+    percent: clampNumber(nextEntry.percent, 0, 100),
+    timestampMs: nextEntry.timestampMs,
+  }
+
+  const nextEntries = [...state.drinkEntries]
+  nextEntries[index] = updatedEntry
+  nextEntries.sort((a, b) => b.timestampMs - a.timestampMs)
+  state.drinkEntries = nextEntries.slice(0, 500)
+  savePersistedState()
+  return true
+}
+
 export function formatDrinkEntryTime(timestampMs: number): string {
   return formatHHMM(new Date(timestampMs))
 }
