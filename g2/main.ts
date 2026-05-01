@@ -174,6 +174,12 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
                   if (submenuItem === 'Add drink') {
                     const entry = storeCurrentDrink()
                     appendEventLog(`Drink stored: ${entry.ml} ml @ ${entry.percent}% (${formatDrinkEntryTime(entry.timestampMs)})`)
+                    // After confirming a drink, open Home directly.
+                    setAddDrinkSubmenuVisible(false)
+                    setMenuItem('home')
+                    logMenuContext('open-home-after-add-drink')
+                    refreshDisplayIfActive()
+                    return
                   } else if (submenuItem === '+ ml') {
                     setDrinkMl(state.drinkMl + 25)
                   } else if (submenuItem === '- ml') {
