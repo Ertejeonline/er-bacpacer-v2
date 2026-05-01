@@ -5,6 +5,7 @@ import { initApp, updateDisplay } from './app'
 import {
   clearDrinkEntries,
   formatDrinkEntryTime,
+  removeDrinkEntry,
   setMenuItem,
   setFocusedMenuItem,
   setAddDrinkSubmenuVisible,
@@ -309,6 +310,14 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
     },
 
     getDrinkEntries: () => [...state.drinkEntries],
+
+    removeDrinkEntry: (timestampMs: number) => {
+      const removed = removeDrinkEntry(timestampMs)
+      if (!removed) return
+
+      setStatus('Drink removed from log')
+      appendEventLog(`Drink removed from phone UI: timestamp=${timestampMs}`)
+    },
   }
 }
 

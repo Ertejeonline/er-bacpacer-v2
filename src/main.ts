@@ -18,6 +18,10 @@ async function boot() {
   const drinksLogModal = document.getElementById('drinksLogModal')
   const drinksLogList = document.getElementById('drinksLogList')
   const closeDrinksLogBtn = document.getElementById('closeDrinksLogBtn') as HTMLButtonElement | null
+  const confirmDeleteDrinkModal = document.getElementById('confirmDeleteDrinkModal')
+  const confirmDeleteDrinkText = document.getElementById('confirmDeleteDrinkText')
+  const confirmDeleteDrinkBtn = document.getElementById('confirmDeleteDrinkBtn') as HTMLButtonElement | null
+  const cancelDeleteDrinkBtn = document.getElementById('cancelDeleteDrinkBtn') as HTMLButtonElement | null
 
   document.title = `${app.name} – Even G2`
   updateStatus(app.initialStatus ?? `${app.name} app ready`)
@@ -25,6 +29,52 @@ async function boot() {
   if (resetBtn && app.resetLabel) resetBtn.textContent = app.resetLabel
 
   const actions = await app.createActions(updateStatus)
+  let pendingDeleteTimestampMs: number | null = null
+
+  const closeDeleteDrinkModal = () => {
+    pendingDeleteTimestampMs = null
+    confirmDeleteDrinkModal?.classList.add('hidden')
+  }
+
+  const renderDrinksLog = () => {
+    if (!drinksLogList || !actions.getDrinkEntries) return
+
+    const entries = actions.getDrinkEntries()
+    drinksLogList.innerHTML = ''
+    for (const entry of entries) {
+      const row = document.createElement('div')
+      row.className = 'drink-log-row'
+
+      const d = new Date(entry.timestampMs)
+      const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+
+      const timeEl = document.createElement('span')
+      timeEl.className = 'drink-log-time'
+      timeEl.textContent = time
+
+      const detailEl = document.createElement('span')
+      detailEl.className = 'drink-log-details'
+      detailEl.textContent = `${entry.ml} ml · ${entry.percent.toFixed(1)}%`
+
+      const deleteBtn = document.createElement('button')
+      deleteBtn.type = 'button'
+      deleteBtn.className = 'drink-log-delete-btn'
+      deleteBtn.setAttribute('aria-label', `Delete ${entry.ml} ml at ${time}`)
+      deleteBtn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 3h6l1 2h4v2H4V5h4l1-2zm1 6h2v8h-2V9zm4 0h2v8h-2V9zM7 9h2v8H7V9zm1 12a2 2 0 0 1-2-2V8h12v11a2 2 0 0 1-2 2H8z" fill="currentColor"/></svg>'
+      deleteBtn.addEventListener('click', () => {
+        pendingDeleteTimestampMs = entry.timestampMs
+        if (confirmDeleteDrinkText) {
+          confirmDeleteDrinkText.textContent = `Delete ${entry.ml} ml at ${entry.percent.toFixed(1)}% from ${time}?`
+        }
+        confirmDeleteDrinkModal?.classList.remove('hidden')
+      })
+
+      row.appendChild(timeEl)
+      row.appendChild(detailEl)
+      row.appendChild(deleteBtn)
+      drinksLogList.appendChild(row)
+    }
+  }
 
   const openResetModal = () => {
     if (!confirmResetModal) return
@@ -36,58 +86,10 @@ async function boot() {
     confirmResetModal.classList.add('hidden')
   }
 
-  if (actions.reset && resetBtn) {
-    resetBtn.style.display = ''
-    resetBtn.addEventListener('click', () => {
-      openResetModal()
-    })
-  }
-
-  cancelResetBtn?.addEventListener('click', () => {
-    closeResetModal()
-  })
-
-  confirmResetBtn?.addEventListener('click', async () => {
-    if (!actions.reset) return
-    confirmResetBtn.disabled = true
-    try {
-      await actions.reset()
-      closeResetModal()
-    }
-    catch (e) {
-      console.error(e)
-      updateStatus('Reset failed')
-    }
-    finally {
-      confirmResetBtn.disabled = false
-    }
-  })
-
-  confirmResetModal?.addEventListener('click', (event) => {
-    if (event.target === confirmResetModal) {
-      closeResetModal()
-    }
-  })
-
   const openDrinksLog = () => {
     if (!drinksLogModal || !drinksLogList || !actions.getDrinkEntries) return
-    const entries = actions.getDrinkEntries()
-    drinksLogList.innerHTML = ''
-    for (const entry of [...entries].reverse()) {
-      const row = document.createElement('div')
-      row.className = 'drink-log-row'
-      const d = new Date(entry.timestampMs)
-      const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      const timeEl = document.createElement('span')
-      timeEl.className = 'drink-log-time'
-      timeEl.textContent = time
-      const detailEl = document.createElement('span')
-      detailEl.className = 'drink-log-details'
-      detailEl.textContent = `${entry.ml} ml · ${entry.percent.toFixed(1)}%`
-      row.appendChild(timeEl)
-      row.appendChild(detailEl)
-      drinksLogList.appendChild(row)
-    }
+
+    renderDrinksLog()
     drinksLogModal.classList.remove('hidden')
   }
 
@@ -104,6 +106,19 @@ async function boot() {
   drinksLogModal?.addEventListener('click', (event) => {
     if (event.target === drinksLogModal) {
       closeDrinksLog()
+    }
+  })
+
+  cancelDeleteDrinkBtn?.addEventListener('click', closeDeleteDrinkModal)
+  confirmDeleteDrinkBtn?.addEventListener('click', () => {
+    if (pendingDeleteTimestampMs === null) return
+    actions.removeDrinkEntry?.(pendingDeleteTimestampMs)
+    closeDeleteDrinkModal()
+    renderDrinksLog()
+  })
+  confirmDeleteDrinkModal?.addEventListener('click', (event) => {
+    if (event.target === confirmDeleteDrinkModal) {
+      closeDeleteDrinkModal()
     }
   })
 

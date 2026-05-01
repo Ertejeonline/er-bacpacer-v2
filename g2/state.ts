@@ -252,6 +252,17 @@ export function clearDrinkEntries(): void {
   savePersistedState()
 }
 
+export function removeDrinkEntry(timestampMs: number): boolean {
+  const nextEntries = state.drinkEntries.filter((entry) => entry.timestampMs !== timestampMs)
+  if (nextEntries.length === state.drinkEntries.length) {
+    return false
+  }
+
+  state.drinkEntries = nextEntries
+  savePersistedState()
+  return true
+}
+
 export function formatDrinkEntryTime(timestampMs: number): string {
   return formatHHMM(new Date(timestampMs))
 }
