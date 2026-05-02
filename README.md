@@ -1,21 +1,78 @@
-# Bacpacer
+# Bacpacer (Even G2)
 
-A pacer app for Evenrealities G2 glasses.
+Bacpacer is an Even G2 app for pacing alcohol intake.
 
-## Development
+It lets you log drinks on-glasses, shows a countdown until the next drink window, and estimates BAC using configurable personal settings.
 
-1. Install dependencies: `npm install`
-2. Start dev server: `npm run dev`
-3. Build: `npm run build`
-4. Pack: `npm run pack`
+## What This App Does
 
-## Features
+- Main menu on glasses:
+  - `Stand by`: minimal standby detail view
+  - `Log a drink`: open drink logging submenu
+  - `Summary`: show BAC summary metrics
+- Drink logging flow:
+  - adjust default volume (`ml`) and strength (`%`)
+  - confirm `Add drink` to store an entry
+  - each entry has start and computed end time
+- BAC estimate model:
+  - tracks current BAC and peak BAC
+  - estimates sober time
+  - supports food profile and elimination/absorption settings
+- Companion web UI:
+  - connect to bridge
+  - view event log
+  - reset all drinks
+  - open/edit/delete drink entries
+  - tune BAC settings
 
-- Display tempo/pace information
-- Configurable BPM (beats per minute)
-- Visual and haptic feedback options
+## Tech Stack
 
-## Building for Device
+- Vite + TypeScript
+- Even Hub SDK: `@evenrealities/even_hub_sdk`
+- Even Hub CLI for QR, simulator, and packaging
 
-1. Run `npm run pack` to create a `.ehpk` package
-2. Deploy to Even G2 glasses using the Even Hub CLI
+## Project Scripts
+
+- `npm run dev`: start local dev server on `0.0.0.0:5173`
+- `npm run qr`: show Even Hub QR target for the dev server
+- `npm run simulator`: launch Even Hub simulator against local dev server
+- `npm run build`: production build to `dist/`
+- `npm run preview`: preview production build locally
+- `npm run pack`: build and create `bacpacer.ehpk`
+
+## Local Development
+
+1. Install dependencies:
+	- Windows PowerShell in this environment: `npm.cmd install`
+	- Other shells: `npm install`
+2. Start dev server:
+	- `npm.cmd run dev` (PowerShell) or `npm run dev`
+3. In another terminal, show QR:
+	- `npm.cmd run qr` (PowerShell) or `npm run qr`
+4. Scan QR from Even Hub to run on device.
+
+## Run in Simulator
+
+1. Start dev server:
+	- `npm.cmd run dev` (PowerShell) or `npm run dev`
+2. Start simulator:
+	- `npm.cmd run simulator` (PowerShell) or `npm run simulator`
+
+## Package for Distribution
+
+1. Build and package:
+	- `npm.cmd run pack` (PowerShell) or `npm run pack`
+2. Output artifact:
+	- `bacpacer.ehpk`
+
+## Configuration and Metadata
+
+- App metadata and package info: `app.json`
+- Package id: `com.er.bacpacer`
+- SDK minimum: `0.0.10`
+
+## Notes
+
+- Persisted state key: `bacpacer.persisted.v1`
+- Drink history is bounded to recent entries and persisted via bridge storage (with browser localStorage fallback).
+- This repository folder is the Bacpacer app and is independent from `demo-app-g2`.
