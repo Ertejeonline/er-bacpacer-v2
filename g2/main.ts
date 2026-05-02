@@ -22,6 +22,7 @@ import {
   addDrinkSubmenuItemFromIndex,
   menuItemFromIndex,
   resetRendererSession,
+  toggleStandbyHudVisibility,
   updateMenuDisplay,
   updateTopRightCountdownOnly,
 } from './renderer'
@@ -44,6 +45,7 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
   let exitDialogRecoveryTimerId: number | null = null
   let unsubscribeEvenHubEvent: (() => void) | null = null
   let refreshTimerId: number | null = null
+  let lastStandbyHudToggleAtMs = 0
   let teardownRegistered = false
 
   const stopRefreshTimer = () => {
@@ -86,6 +88,41 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
   const refreshDisplayIfActive = () => {
     if (!connected || !appInForeground) return
     void updateMenuDisplay()
+  }
+
+  const isClickEventType = (eventType: number | undefined, source: 'list' | 'text' | 'sys') => {
+    if (eventType === OsEventTypeList.CLICK_EVENT) return true
+    // SDK quirk: value 0 may be deserialized as undefined across event sources.
+    if (typeof eventType === 'undefined') return true
+    return false
+  }
+
+  const tryToggleStandbyHud = (eventType: number | undefined, source: 'list' | 'text' | 'sys'): boolean => {
+    const atStandbyDetail = !state.menuVisible && state.currentMenuItem === 'home'
+    if (!atStandbyDetail || !isClickEventType(eventType, source)) return false
+
+    const now = Date.now()
+    if ((now - lastStandbyHudToggleAtMs) < 250) return true
+    lastStandbyHudToggleAtMs = now
+
+    const hidden = toggleStandbyHudVisibility()
+    appendEventLog(`Standby HUD: ${hidden ? 'hidden' : 'visible'}`)
+    refreshDisplayIfActive()
+    return true
+  }
+
+  const handleDoubleClickNavigation = (bridge: Awaited<ReturnType<typeof waitForEvenAppBridge>>) => {
+    const atRootMenu = state.menuVisible && !state.addDrinkSubmenuVisible
+    if (atRootMenu) {
+      exitDialogPending = true
+      scheduleExitDialogRecovery()
+      appendEventLog('Menu double-tap: shutDownPageContainer(1)')
+      void bridge.shutDownPageContainer(1)
+      return
+    }
+    exitDialogPending = false
+    clearExitDialogRecoveryTimer()
+    void showMenu()
   }
 
   const logMenuContext = (stage: string, extra?: string) => {
@@ -179,6 +216,17 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
               exitDialogPending = false
               clearExitDialogRecoveryTimer()
             }
+
+            if (tryToggleStandbyHud(event.listEvent.eventType, 'list')) {
+              return
+            }
+
+            const listEventType = event.listEvent.eventType
+            if (listEventType === OsEventTypeList.DOUBLE_CLICK_EVENT) {
+              handleDoubleClickNavigation(bridge)
+              return
+            }
+
             if (!state.menuVisible) return
             const eventType = event.listEvent.eventType ?? 0
             if (eventType === OsEventTypeList.CLICK_EVENT) {
@@ -232,6 +280,20 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
             return
           }
 
+          if (event.textEvent) {
+            inferForegroundFromInput()
+            if (exitDialogPending) {
+              appendEventLog('Lifecycle: exit dialog dismissed by user input')
+              exitDialogPending = false
+              clearExitDialogRecoveryTimer()
+            }
+
+            if (tryToggleStandbyHud(event.textEvent.eventType, 'text')) {
+              return
+            }
+            return
+          }
+
           if (event.sysEvent) {
             const eventType = event.sysEvent.eventType ?? 0
             if (eventType === OsEventTypeList.FOREGROUND_ENTER_EVENT) {
@@ -273,18 +335,12 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
             // Some firmware paths can miss FOREGROUND_ENTER after overlay dismissal.
             inferForegroundFromInput()
 
+            if (tryToggleStandbyHud(event.sysEvent.eventType, 'sys')) {
+              return
+            }
+
             if (eventType === OsEventTypeList.DOUBLE_CLICK_EVENT) {
-              const atRootMenu = state.menuVisible && !state.addDrinkSubmenuVisible
-              if (atRootMenu) {
-                exitDialogPending = true
-                scheduleExitDialogRecovery()
-                appendEventLog('Menu double-tap: shutDownPageContainer(1)')
-                void bridge.shutDownPageContainer(1)
-                return
-              }
-              exitDialogPending = false
-              clearExitDialogRecoveryTimer()
-              showMenu()
+              handleDoubleClickNavigation(bridge)
             }
           }
         })

@@ -25,9 +25,10 @@ const ADD_DRINK_MENU_ITEMS = [
 ]
 
 let containersCreated = false
-type LayoutMode = 'main-menu' | 'adddrink-menu' | 'detail'
+type LayoutMode = 'main-menu' | 'adddrink-menu' | 'detail' | 'standby-detail'
 let currentLayoutMode: LayoutMode | null = null
 let renderQueue: Promise<void> = Promise.resolve()
+let standbyHudHidden = false
 
 const SCREEN_WIDTH = 576
 const SCREEN_HEIGHT = 288
@@ -63,15 +64,31 @@ function runSerializedRender(task: () => Promise<void>): Promise<void> {
   return next
 }
 
+function isStandbyDetailContext(): boolean {
+  return !state.menuVisible && state.currentMenuItem === 'home'
+}
+
+export function toggleStandbyHudVisibility(): boolean {
+  if (!isStandbyDetailContext()) return standbyHudHidden
+  standbyHudHidden = !standbyHudHidden
+  return standbyHudHidden
+}
+
+export function resetStandbyHudVisibility(): void {
+  standbyHudHidden = false
+}
+
 function getTopRightContent(): string {
+  if (standbyHudHidden && isStandbyDetailContext()) return ' '
+
   const latest = state.drinkEntries[0]
-  if (!latest) return ''
+  if (!latest) return ' '
 
   const percentFraction = latest.percent > 1 ? latest.percent / 100 : latest.percent
   const intervalMinutes = (latest.ml * percentFraction) / 0.5
   const nextDrinkAtMs = latest.timestampMs + intervalMinutes * 60_000
   const remainingMinutes = Math.round((nextDrinkAtMs - Date.now()) / 60_000)
-  if (remainingMinutes <= 0) return ''
+  if (remainingMinutes <= 0) return ' '
   return `${remainingMinutes}`
 }
 
@@ -93,7 +110,7 @@ function getMainRightContent(): string {
   }
 
   const inAddDrinkContext = state.addDrinkSubmenuVisible || (!state.menuVisible && state.currentMenuItem === 'adddrink')
-  if (!inAddDrinkContext) return ''
+  if (!inAddDrinkContext) return ' '
 
   const latest = `${state.drinkMl} ml    ${state.drinkPercent} %`
   const historyLines = state.drinkEntries.slice(0, MAX_RIGHT_HISTORY_LINES).map((entry) => {
@@ -108,8 +125,10 @@ function getMainRightContent(): string {
 }
 
 function getBottomRightContent(): string {
+  if (standbyHudHidden && isStandbyDetailContext()) return ' '
+
   const estimate = getBacEstimateAt()
-  if (estimate.bacGdl <= 0) return ''
+  if (estimate.bacGdl <= 0) return ' '
 
   const risingMarker = estimate.isRisingToPeak ? ' ↗️' : ''
   return `${formatBacGdl(estimate.bacGdl)}${risingMarker}`
@@ -256,12 +275,16 @@ async function updateMenuDisplayInternal(): Promise<void> {
   const b = getBridge()
   if (!b) return
 
+  if (!isStandbyDetailContext() && standbyHudHidden) {
+    standbyHudHidden = false
+  }
+
   const breadcrumb = state.menuVisible
     ? (state.addDrinkSubmenuVisible ? 'Log a drink' : 'Menu')
     : (state.currentMenuItem === 'home' ? '' : `${getMenuItemLabel(state.currentMenuItem)}`)
 
   const targetLayoutMode: LayoutMode = !state.menuVisible
-    ? 'detail'
+    ? (state.currentMenuItem === 'home' ? 'standby-detail' : 'detail')
     : (state.addDrinkSubmenuVisible ? 'adddrink-menu' : 'main-menu')
 
   const needsFullLayoutRender = !containersCreated || targetLayoutMode !== currentLayoutMode
@@ -271,7 +294,9 @@ async function updateMenuDisplayInternal(): Promise<void> {
 
   if (needsFullLayoutRender) {
     let rendered = false
-    if (targetLayoutMode === 'detail') {
+    if (targetLayoutMode === 'standby-detail') {
+      rendered = await showStandbyDetailLayout()
+    } else if (targetLayoutMode === 'detail') {
       const body = getScreenBody(state.currentMenuItem)
       rendered = await showDetailLayout(body)
     } else if (targetLayoutMode === 'adddrink-menu') {
@@ -340,6 +365,27 @@ async function showMainMenuListLayout(): Promise<boolean> {
 
 async function showAddDrinkMenuListLayout(): Promise<boolean> {
   return showMenuListLayout(ADD_DRINK_MENU_ITEMS, 'AddDrinkMenu')
+}
+
+async function showStandbyDetailLayout(): Promise<boolean> {
+  const textContainers = [
+    ...buildStaticTextContainers(),
+    new TextContainerProperty({
+      containerID: 3,
+      containerName: 'StandbyTapCap',
+      content: ' ',
+      xPosition: 0,
+      yPosition: MAIN_Y,
+      width: MAIN_WIDTH,
+      height: MAIN_HEIGHT,
+      isEventCapture: 1,
+    }),
+  ]
+
+  return applyPage({
+    containerTotalNum: 6,
+    textObject: textContainers,
+  })
 }
 
 async function showDetailLayout(body: string): Promise<boolean> {
@@ -432,4 +478,5 @@ export function resetRendererSession(): void {
   containersCreated = false
   currentLayoutMode = null
   renderQueue = Promise.resolve()
+  standbyHudHidden = false
 }
