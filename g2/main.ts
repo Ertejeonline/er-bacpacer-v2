@@ -98,7 +98,7 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
   }
 
   const tryToggleStandbyHud = (eventType: number | undefined, source: 'list' | 'text' | 'sys'): boolean => {
-    const atStandbyDetail = !state.menuVisible && state.currentMenuItem === 'home'
+    const atStandbyDetail = !state.menuVisible && state.currentMenuItem === 'standBy'
     if (!atStandbyDetail || !isClickEventType(eventType, source)) return false
 
     const now = Date.now()
@@ -239,10 +239,10 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
                   if (submenuItem === 'Add drink') {
                     const entry = storeCurrentDrink()
                     appendEventLog(`Drink stored: ${entry.ml} ml @ ${entry.percent}% (${formatDrinkEntryTime(entry.timestampMs)})`)
-                    // After confirming a drink, open Home directly.
+                    // After confirming a drink, open Stand by directly.
                     setAddDrinkSubmenuVisible(false)
-                    setMenuItem('home')
-                    logMenuContext('open-home-after-add-drink')
+                    setMenuItem('standBy')
+                    logMenuContext('open-standby-after-add-drink')
                     refreshDisplayIfActive()
                     return
                   } else if (submenuItem === '+ ml') {

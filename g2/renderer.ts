@@ -11,7 +11,7 @@ import { appendEventLog } from '../_shared/log'
 import { formatBacGdl, formatDrinkEntryTime, getBacEstimateAt, getDrinkEntryEndTimestampMs, state, getBridge, type MenuItem } from './state'
 
 const MENU_ITEMS: { id: MenuItem; label: string }[] = [
-  { id: 'home', label: 'Stand by' },
+  { id: 'standBy', label: 'Stand by' },
   { id: 'adddrink', label: 'Log a drink' },
   { id: 'setupdrink', label: 'Summary' },
 ]
@@ -65,7 +65,7 @@ function runSerializedRender(task: () => Promise<void>): Promise<void> {
 }
 
 function isStandbyDetailContext(): boolean {
-  return !state.menuVisible && state.currentMenuItem === 'home'
+  return !state.menuVisible && state.currentMenuItem === 'standBy'
 }
 
 export function toggleStandbyHudVisibility(): boolean {
@@ -281,10 +281,10 @@ async function updateMenuDisplayInternal(): Promise<void> {
 
   const breadcrumb = state.menuVisible
     ? (state.addDrinkSubmenuVisible ? 'Log a drink' : 'Menu')
-    : (state.currentMenuItem === 'home' ? '' : `${getMenuItemLabel(state.currentMenuItem)}`)
+    : (state.currentMenuItem === 'standBy' ? '' : `${getMenuItemLabel(state.currentMenuItem)}`)
 
   const targetLayoutMode: LayoutMode = !state.menuVisible
-    ? (state.currentMenuItem === 'home' ? 'standby-detail' : 'detail')
+    ? (state.currentMenuItem === 'standBy' ? 'standby-detail' : 'detail')
     : (state.addDrinkSubmenuVisible ? 'adddrink-menu' : 'main-menu')
 
   const needsFullLayoutRender = !containersCreated || targetLayoutMode !== currentLayoutMode
@@ -360,7 +360,7 @@ async function showMenuListLayout(items: string[], name: string): Promise<boolea
 }
 
 async function showMainMenuListLayout(): Promise<boolean> {
-  return showMenuListLayout(MENU_ITEMS.map(item => item.label || 'Home'), 'MainLeftMenu')
+  return showMenuListLayout(MENU_ITEMS.map(item => item.label || 'Stand by'), 'MainLeftMenu')
 }
 
 async function showAddDrinkMenuListLayout(): Promise<boolean> {
@@ -425,7 +425,7 @@ function getMenuItemLabel(item: MenuItem): string {
 
 function getScreenBody(item: MenuItem): string {
   switch (item) {
-    case 'home':
+    case 'standBy':
       return ''
     case 'adddrink':
       return `Add drink\nVolume: ${state.drinkMl} ml\nStrength: ${state.drinkPercent}%`

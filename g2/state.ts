@@ -1,7 +1,7 @@
 // Application state management
 import type { EvenAppBridge } from '@evenrealities/even_hub_sdk'
 
-export type MenuItem = 'home' | 'adddrink' | 'setupdrink'
+export type MenuItem = 'standBy' | 'adddrink' | 'setupdrink'
 
 export type DrinkEntry = {
   ml: number
@@ -88,8 +88,8 @@ export const state = {
   startupRendered: false,
   menuVisible: true, // new state to control menu visibility
   addDrinkSubmenuVisible: false,
-  currentMenuItem: 'home' as MenuItem,
-  focusedMenuItem: 'home' as MenuItem,
+  currentMenuItem: 'standBy' as MenuItem,
+  focusedMenuItem: 'standBy' as MenuItem,
   pacerRunning: DEFAULT_PERSISTED_STATE.pacerRunning,
   bpm: DEFAULT_PERSISTED_STATE.bpm,
   drinkMl: DEFAULT_PERSISTED_STATE.drinkMl,
