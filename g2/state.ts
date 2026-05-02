@@ -400,33 +400,76 @@ export function getBacEstimateAt(nowMs: number = Date.now()): BacEstimate {
   }
 
   const settings = state.bacSettings
-  const firstDrinkAtMs = entries[0].timestampMs
-  const hoursSinceFirstDrink = Math.max(0, (nowMs - firstDrinkAtMs) / 3_600_000)
 
   const foodAbsorptionMultiplier = FOOD_PROFILE_ABSORPTION_MULTIPLIER[settings.foodProfile]
   const effectiveAbsorptionMinutes = settings.absorptionMinutes / foodAbsorptionMultiplier
 
-  let absorbedAlcoholGrams = 0
-  for (const entry of entries) {
-    const elapsedMinutes = Math.max(0, (nowMs - entry.timestampMs) / 60_000)
-    const percentFraction = entry.percent > 1 ? entry.percent / 100 : entry.percent
-    const ethanolGrams = entry.ml * percentFraction * 0.789
-    const absorbedFraction = effectiveAbsorptionMinutes <= 0
-      ? 1
-      : Math.min(1, elapsedMinutes / effectiveAbsorptionMinutes)
-    absorbedAlcoholGrams += ethanolGrams * absorbedFraction
+  const getAbsorbedAlcoholGramsAt = (targetMs: number): number => {
+    let absorbedAlcoholGramsAtTarget = 0
+    for (const entry of entries) {
+      const elapsedMinutes = Math.max(0, (targetMs - entry.timestampMs) / 60_000)
+      const percentFraction = entry.percent > 1 ? entry.percent / 100 : entry.percent
+      const ethanolGrams = entry.ml * percentFraction * 0.789
+      const absorbedFraction = effectiveAbsorptionMinutes <= 0
+        ? 1
+        : Math.min(1, elapsedMinutes / effectiveAbsorptionMinutes)
+      absorbedAlcoholGramsAtTarget += ethanolGrams * absorbedFraction
+    }
+    return absorbedAlcoholGramsAtTarget
   }
 
+  const getBacAt = (targetMs: number): number => {
+    const firstDrinkAtMs = entries[0].timestampMs
+    const hoursSinceFirstDrinkAtTarget = Math.max(0, (targetMs - firstDrinkAtMs) / 3_600_000)
+    const absorbedAlcoholGramsAtTarget = getAbsorbedAlcoholGramsAt(targetMs)
+
+    const distributionLiters = settings.bodyWaterFactor * settings.weightKg
+    const rawBacAtTarget = distributionLiters > 0
+      ? absorbedAlcoholGramsAtTarget / (distributionLiters * 10)
+      : 0
+
+    const metabolizedAtTarget = settings.eliminationRatePerHour * hoursSinceFirstDrinkAtTarget
+    return Math.max(0, rawBacAtTarget - metabolizedAtTarget)
+  }
+
+  const firstDrinkAtMs = entries[0].timestampMs
+  const hoursSinceFirstDrink = Math.max(0, (nowMs - firstDrinkAtMs) / 3_600_000)
+  const absorbedAlcoholGrams = getAbsorbedAlcoholGramsAt(nowMs)
+  const bacGdl = getBacAt(nowMs)
+
+  const totalEthanolGrams = entries.reduce((sum, entry) => {
+    const percentFraction = entry.percent > 1 ? entry.percent / 100 : entry.percent
+    return sum + (entry.ml * percentFraction * 0.789)
+  }, 0)
+
   const distributionLiters = settings.bodyWaterFactor * settings.weightKg
-  const rawBac = distributionLiters > 0
-    ? absorbedAlcoholGrams / (distributionLiters * 10)
+  const maxRawBac = distributionLiters > 0
+    ? totalEthanolGrams / (distributionLiters * 10)
     : 0
 
-  const metabolized = settings.eliminationRatePerHour * hoursSinceFirstDrink
-  const bacGdl = Math.max(0, rawBac - metabolized)
-  const estimatedSoberAtMs = bacGdl > 0
-    ? nowMs + ((bacGdl / settings.eliminationRatePerHour) * 3_600_000)
-    : null
+  const latestDrinkAtMs = entries[entries.length - 1].timestampMs
+  const absorptionDoneAtMs = latestDrinkAtMs + (effectiveAbsorptionMinutes * 60_000)
+  const eliminationWindowMs = settings.eliminationRatePerHour > 0
+    ? ((maxRawBac / settings.eliminationRatePerHour) * 3_600_000)
+    : 0
+  const simulationEndMs = nowMs + Math.min(72 * 3_600_000, Math.max(4 * 3_600_000, (absorptionDoneAtMs - nowMs) + eliminationWindowMs + (2 * 3_600_000)))
+
+  const stepMs = 60_000
+  let estimatedSoberAtMs: number | null = null
+  let hadPositiveBac = bacGdl > 0
+  let previousBac = bacGdl
+
+  for (let t = nowMs + stepMs; t <= simulationEndMs; t += stepMs) {
+    const bacAtT = getBacAt(t)
+    if (bacAtT > 0) hadPositiveBac = true
+
+    if (hadPositiveBac && previousBac > 0 && bacAtT <= 0) {
+      estimatedSoberAtMs = t
+      break
+    }
+
+    previousBac = bacAtT
+  }
 
   return {
     bacGdl,
