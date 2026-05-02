@@ -342,3 +342,8 @@ select.field-input {
   width: 18px;
   height: 18px;
 }
+
+#bacEstimatePreview,
+#bacSoberAtPreview {
+  color: var(--color-text);
+}

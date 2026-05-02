@@ -33,6 +33,7 @@ async function boot() {
   const cancelEditDrinkBtn = document.getElementById('cancelEditDrinkBtn') as HTMLButtonElement | null
   const bacSettingsModal = document.getElementById('bacSettingsModal')
   const bacEstimatePreview = document.getElementById('bacEstimatePreview')
+  const bacSoberAtPreview = document.getElementById('bacSoberAtPreview')
   const bacMetabolismLevelInput = document.getElementById('bacMetabolismLevelInput') as HTMLInputElement | null
   const bacMetabolismLevelLabel = document.getElementById('bacMetabolismLevelLabel') as HTMLSpanElement | null
   const bacWeightKgInput = document.getElementById('bacWeightKgInput') as HTMLInputElement | null
@@ -215,6 +216,11 @@ async function boot() {
         ? `Estimated BAC now: ${estimate.bacGdl.toFixed(3)} g/dL`
         : ''
     }
+    if (bacSoberAtPreview) {
+      bacSoberAtPreview.textContent = estimate?.estimatedSoberAtMs
+        ? `Sober at: ${new Date(estimate.estimatedSoberAtMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+        : ''
+    }
 
     bacSettingsModal.classList.remove('hidden')
   }
@@ -240,6 +246,11 @@ async function boot() {
       foodProfile,
     })
     bacEstimatePreview.textContent = `Estimated BAC now: ${estimate.bacGdl.toFixed(3)} g/dL`
+    if (bacSoberAtPreview) {
+      bacSoberAtPreview.textContent = estimate.estimatedSoberAtMs
+        ? `Sober at: ${new Date(estimate.estimatedSoberAtMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+        : ''
+    }
   }
 
   const renderDrinksLog = () => {
