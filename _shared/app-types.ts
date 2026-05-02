@@ -4,6 +4,7 @@ export type DrinkEntry = {
   ml: number
   percent: number
   timestampMs: number
+  endTimestampMs?: number
 }
 
 export type BacFoodProfile = 'empty' | 'light' | 'heavy'

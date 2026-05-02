@@ -7,6 +7,7 @@ export type DrinkEntry = {
   ml: number
   percent: number
   timestampMs: number
+  endTimestampMs?: number
 }
 
 export type BacFoodProfile = 'empty' | 'light' | 'heavy'
@@ -115,6 +116,21 @@ function clampNumber(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
 }
 
+function getPercentFraction(percent: number): number {
+  return percent > 1 ? percent / 100 : percent
+}
+
+export function estimateDrinkDurationMs(ml: number, percent: number): number {
+  const intervalMinutes = (ml * getPercentFraction(percent)) / 0.5
+  return Math.max(0, intervalMinutes * 60_000)
+}
+
+export function getDrinkEntryEndTimestampMs(entry: DrinkEntry): number {
+  const fallbackEnd = entry.timestampMs + estimateDrinkDurationMs(entry.ml, entry.percent)
+  if (typeof entry.endTimestampMs !== 'number') return fallbackEnd
+  return Math.max(entry.timestampMs, entry.endTimestampMs)
+}
+
 function normalizeFoodProfile(value: unknown): BacFoodProfile {
   if (value === 'empty' || value === 'light' || value === 'heavy') return value
   return DEFAULT_BAC_SETTINGS.foodProfile
@@ -210,6 +226,7 @@ function toPersistedState(): PersistedState {
       ml: clampNumber(entry.ml, 0, 2000),
       percent: clampNumber(entry.percent, 0, 100),
       timestampMs: entry.timestampMs,
+      endTimestampMs: getDrinkEntryEndTimestampMs(entry),
     })),
     bacSettings: normalizeBacSettings(state.bacSettings),
   }
@@ -266,7 +283,11 @@ function applyHydratedState(raw: string): void {
           const percent = typeof candidate.percent === 'number' ? clampNumber(candidate.percent, 0, 100) : state.drinkPercent
           const timeHHMM = typeof candidate.timeHHMM === 'string' ? candidate.timeHHMM : '00:00'
           const timestampMs = typeof candidate.timestampMs === 'number' ? candidate.timestampMs : timestampFromHHMM(timeHHMM)
-          return { ml, percent, timestampMs }
+          const estimatedEnd = timestampMs + estimateDrinkDurationMs(ml, percent)
+          const endTimestampMs = typeof candidate.endTimestampMs === 'number'
+            ? Math.max(timestampMs, candidate.endTimestampMs)
+            : estimatedEnd
+          return { ml, percent, timestampMs, endTimestampMs }
         })
         .filter((entry) => (now - entry.timestampMs) < DRINK_ENTRY_MAX_AGE_MS)
         .slice(0, 500)
@@ -406,6 +427,11 @@ export function getBacEstimateAt(nowMs: number = Date.now()): BacEstimate {
   }
 
   const settings = state.bacSettings
+  const latestEntry = entries[entries.length - 1]
+
+  const getDrinkDurationMs = (entry: DrinkEntry): number => {
+    return Math.max(0, getDrinkEntryEndTimestampMs(entry) - entry.timestampMs)
+  }
 
   const foodAbsorptionMultiplier = FOOD_PROFILE_ABSORPTION_MULTIPLIER[settings.foodProfile]
   const effectiveAbsorptionMinutes = settings.absorptionMinutes / foodAbsorptionMultiplier
@@ -414,11 +440,13 @@ export function getBacEstimateAt(nowMs: number = Date.now()): BacEstimate {
     let absorbedAlcoholGramsAtTarget = 0
     for (const entry of entries) {
       const elapsedMinutes = Math.max(0, (targetMs - entry.timestampMs) / 60_000)
-      const percentFraction = entry.percent > 1 ? entry.percent / 100 : entry.percent
+      const percentFraction = getPercentFraction(entry.percent)
       const ethanolGrams = entry.ml * percentFraction * 0.789
-      const absorbedFraction = effectiveAbsorptionMinutes <= 0
+      const drinkDurationMinutes = getDrinkDurationMs(entry) / 60_000
+      const totalAssimilationMinutes = drinkDurationMinutes + Math.max(0, effectiveAbsorptionMinutes)
+      const absorbedFraction = totalAssimilationMinutes <= 0
         ? 1
-        : Math.min(1, elapsedMinutes / effectiveAbsorptionMinutes)
+        : Math.min(1, elapsedMinutes / totalAssimilationMinutes)
       absorbedAlcoholGramsAtTarget += ethanolGrams * absorbedFraction
     }
     return absorbedAlcoholGramsAtTarget
@@ -434,7 +462,18 @@ export function getBacEstimateAt(nowMs: number = Date.now()): BacEstimate {
       ? absorbedAlcoholGramsAtTarget / (distributionLiters * 10)
       : 0
 
-    const metabolizedAtTarget = settings.eliminationRatePerHour * hoursSinceFirstDrinkAtTarget
+    let activeLatestDrinkHours = 0
+    if (latestEntry) {
+      const latestStart = latestEntry.timestampMs
+      const latestEnd = latestStart + getDrinkDurationMs(latestEntry)
+      if (targetMs > latestStart && latestEnd > latestStart) {
+        const overlapEnd = Math.min(targetMs, latestEnd)
+        activeLatestDrinkHours = Math.max(0, (overlapEnd - latestStart) / 3_600_000)
+      }
+    }
+
+    const effectiveEliminationHours = Math.max(0, hoursSinceFirstDrinkAtTarget - activeLatestDrinkHours)
+    const metabolizedAtTarget = settings.eliminationRatePerHour * effectiveEliminationHours
     return Math.max(0, rawBacAtTarget - metabolizedAtTarget)
   }
 
@@ -444,7 +483,7 @@ export function getBacEstimateAt(nowMs: number = Date.now()): BacEstimate {
   const bacGdl = getBacAt(nowMs)
 
   const totalEthanolGrams = entries.reduce((sum, entry) => {
-    const percentFraction = entry.percent > 1 ? entry.percent / 100 : entry.percent
+    const percentFraction = getPercentFraction(entry.percent)
     return sum + (entry.ml * percentFraction * 0.789)
   }, 0)
 
@@ -501,10 +540,20 @@ export function formatBacGdl(value: number): string {
 
 export function storeCurrentDrink(): DrinkEntry {
   const now = Date.now()
+  const previousLatest = state.drinkEntries[0]
+  const estimatedDurationMs = estimateDrinkDurationMs(state.drinkMl, state.drinkPercent)
   const entry: DrinkEntry = {
     ml: clampNumber(state.drinkMl, 0, 2000),
     percent: clampNumber(state.drinkPercent, 0, 100),
     timestampMs: now,
+    endTimestampMs: now + estimatedDurationMs,
+  }
+
+  if (previousLatest) {
+    const previousEnd = getDrinkEntryEndTimestampMs(previousLatest)
+    if (previousEnd > now) {
+      previousLatest.endTimestampMs = now
+    }
   }
 
   state.drinkEntries = [entry, ...state.drinkEntries].slice(0, 500)
@@ -538,6 +587,9 @@ export function updateDrinkEntry(originalTimestampMs: number, nextEntry: DrinkEn
     ml: clampNumber(nextEntry.ml, 0, 2000),
     percent: clampNumber(nextEntry.percent, 0, 100),
     timestampMs: nextEntry.timestampMs,
+    endTimestampMs: typeof nextEntry.endTimestampMs === 'number'
+      ? Math.max(nextEntry.timestampMs, nextEntry.endTimestampMs)
+      : (nextEntry.timestampMs + estimateDrinkDurationMs(nextEntry.ml, nextEntry.percent)),
   }
 
   const nextEntries = [...state.drinkEntries]

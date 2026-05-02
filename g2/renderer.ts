@@ -8,7 +8,7 @@ import {
   TextContainerUpgrade,
 } from '@evenrealities/even_hub_sdk'
 import { appendEventLog } from '../_shared/log'
-import { formatBacGdl, formatDrinkEntryTime, getBacEstimateAt, state, getBridge, type MenuItem } from './state'
+import { formatBacGdl, formatDrinkEntryTime, getBacEstimateAt, getDrinkEntryEndTimestampMs, state, getBridge, type MenuItem } from './state'
 
 const MENU_ITEMS: { id: MenuItem; label: string }[] = [
   { id: 'home', label: 'Stand by' },
@@ -84,9 +84,7 @@ function getTopRightContent(): string {
   const latest = state.drinkEntries[0]
   if (!latest) return ' '
 
-  const percentFraction = latest.percent > 1 ? latest.percent / 100 : latest.percent
-  const intervalMinutes = (latest.ml * percentFraction) / 0.5
-  const nextDrinkAtMs = latest.timestampMs + intervalMinutes * 60_000
+  const nextDrinkAtMs = getDrinkEntryEndTimestampMs(latest)
   const remainingMinutes = Math.round((nextDrinkAtMs - Date.now()) / 60_000)
   if (remainingMinutes <= 0) return ' '
   return `${remainingMinutes}`
@@ -114,7 +112,9 @@ function getMainRightContent(): string {
 
   const latest = `${state.drinkMl} ml    ${state.drinkPercent} %`
   const historyLines = state.drinkEntries.slice(0, MAX_RIGHT_HISTORY_LINES).map((entry) => {
-    return `${formatDrinkEntryTime(entry.timestampMs)}  ${entry.ml} ml  ${entry.percent}%`
+    const start = formatDrinkEntryTime(entry.timestampMs)
+    const end = formatDrinkEntryTime(getDrinkEntryEndTimestampMs(entry))
+    return `${start}-${end}  ${entry.ml} ml  ${entry.percent}%`
   })
 
   const history = historyLines.length > 0
