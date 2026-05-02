@@ -90,6 +90,11 @@ function getTopRightContent(): string {
   return `${remainingMinutes}`
 }
 
+function getBacTrendMarker(isRisingToPeak: boolean, bacGdl: number): string {
+  if (bacGdl <= 0) return ''
+  return isRisingToPeak ? ' ↗️' : ' ↘️'
+}
+
 function getMainRightContent(): string {
   const inSummaryContext = !state.menuVisible && state.currentMenuItem === 'setupdrink'
   if (inSummaryContext) {
@@ -98,10 +103,10 @@ function getMainRightContent(): string {
     const peakBac = formatBacGdl(estimate.peakBacGdl)
     const peakAt = estimate.peakAtMs ? formatDrinkEntryTime(estimate.peakAtMs) : '--:--'
     const soberAt = estimate.estimatedSoberAtMs ? formatDrinkEntryTime(estimate.estimatedSoberAtMs) : '--:--'
-    const risingMarker = estimate.isRisingToPeak ? ' ↗️' : ''
+    const trendMarker = getBacTrendMarker(estimate.isRisingToPeak, estimate.bacGdl)
 
     return trimForRebuild([
-      `Current BAC: ${currentBac}${risingMarker}`,
+      `Current BAC: ${currentBac}${trendMarker}`,
       `Peak BAC at ${peakAt}: ${peakBac}`,
       `Sober at ${soberAt}`,
     ].join('\n\n'))
@@ -130,8 +135,8 @@ function getBottomRightContent(): string {
   const estimate = getBacEstimateAt()
   if (estimate.bacGdl <= 0) return ' '
 
-  const risingMarker = estimate.isRisingToPeak ? ' ↗️' : ''
-  return `${formatBacGdl(estimate.bacGdl)}${risingMarker}`
+  const trendMarker = getBacTrendMarker(estimate.isRisingToPeak, estimate.bacGdl)
+  return `${formatBacGdl(estimate.bacGdl)}${trendMarker}`
 }
 
 function buildStaticTextContainers(): TextContainerProperty[] {

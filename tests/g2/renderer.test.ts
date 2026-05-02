@@ -143,4 +143,28 @@ describe('g2/renderer', () => {
 
     expect(topRightUpdate).toBeDefined()
   })
+
+  it('shows down-right trend arrow when BAC is falling', async () => {
+    const bridge = makeBridgeMocks()
+    setBridge(bridge as never)
+
+    const now = Date.now()
+    state.drinkEntries = [{
+      ml: 600,
+      percent: 5,
+      timestampMs: now - (120 * 60 * 1000),
+      endTimestampMs: now - (90 * 60 * 1000),
+    }]
+    state.menuVisible = false
+    state.currentMenuItem = 'setupdrink'
+
+    await updateMenuDisplay()
+
+    const bottomRightUpdate = bridge.textContainerUpgrade.mock.calls
+      .map((args) => args[0] as { containerID?: number; content?: string })
+      .find((payload) => payload.containerID === 6)
+
+    expect(bottomRightUpdate).toBeDefined()
+    expect(bottomRightUpdate?.content).toContain('↘️')
+  })
 })
