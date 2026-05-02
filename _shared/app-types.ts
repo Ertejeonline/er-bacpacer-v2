@@ -25,6 +25,9 @@ export type BacUserSettings = {
 
 export type BacEstimate = {
   bacGdl: number
+  peakBacGdl: number
+  peakAtMs: number | null
+  isRisingToPeak: boolean
   absorbedAlcoholGrams: number
   hoursSinceFirstDrink: number
   estimatedSoberAtMs: number | null

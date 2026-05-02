@@ -12,7 +12,7 @@ import { formatBacGdl, formatDrinkEntryTime, getBacEstimateAt, state, getBridge,
 
 const MENU_ITEMS: { id: MenuItem; label: string }[] = [
   { id: 'home', label: '' },
-  { id: 'adddrink', label: 'Add drink' },
+  { id: 'adddrink', label: 'Log a drink' },
   { id: 'setupdrink', label: 'Summary' },
 ]
 
@@ -74,6 +74,22 @@ function getTopRightContent(): string {
 }
 
 function getMainRightContent(): string {
+  const inSummaryContext = !state.menuVisible && state.currentMenuItem === 'setupdrink'
+  if (inSummaryContext) {
+    const estimate = getBacEstimateAt()
+    const currentBac = formatBacGdl(estimate.bacGdl)
+    const peakBac = formatBacGdl(estimate.peakBacGdl)
+    const peakAt = estimate.peakAtMs ? formatDrinkEntryTime(estimate.peakAtMs) : '--:--'
+    const soberAt = estimate.estimatedSoberAtMs ? formatDrinkEntryTime(estimate.estimatedSoberAtMs) : '--:--'
+      const risingMarker = estimate.isRisingToPeak ? ' ↗️' : ''
+
+    return trimForRebuild([
+      `Current BAC: ${currentBac}${risingMarker}`,
+      `Peak BAC at ${peakAt}: ${peakBac}`,
+      `Sober at ${soberAt}`,
+    ].join('\n\n'))
+  }
+
   const inAddDrinkContext = state.addDrinkSubmenuVisible || (!state.menuVisible && state.currentMenuItem === 'adddrink')
   if (!inAddDrinkContext) return ''
 
@@ -225,7 +241,7 @@ async function updateMenuDisplayInternal(): Promise<void> {
   if (!b) return
 
   const breadcrumb = state.menuVisible
-    ? (state.addDrinkSubmenuVisible ? 'Add drink' : 'Menu')
+    ? (state.addDrinkSubmenuVisible ? 'Log a drink' : 'Menu')
     : `${getMenuItemLabel(state.currentMenuItem)}`
 
   const targetLayoutMode: LayoutMode = !state.menuVisible
@@ -340,7 +356,7 @@ export function addDrinkSubmenuItemFromIndex(index: number): string | undefined 
 }
 
 function getMenuItemLabel(item: MenuItem): string {
-  if (item === 'setupdrink') return 'Settings > Summary'
+  if (item === 'setupdrink') return 'Summary'
   const found = MENU_ITEMS.find((menuItem) => menuItem.id === item)
   return found?.label ?? 'Menu'
 }
@@ -352,18 +368,9 @@ function getScreenBody(item: MenuItem): string {
     case 'adddrink':
       return `Add drink\nVolume: ${state.drinkMl} ml\nStrength: ${state.drinkPercent}%`
     case 'setupdrink': {
-      const estimate = getBacEstimateAt()
       const settings = state.bacSettings
-      const soberAt = estimate.estimatedSoberAtMs
-        ? formatDrinkEntryTime(estimate.estimatedSoberAtMs)
-        : '--:--'
 
       return [
-        'Summary',
-        `Est. BAC: ${formatBacGdl(estimate.bacGdl)} g/dL`,
-        `Sober est: ${soberAt}`,
-        '',
-        'Settings',
         `Weight: ${settings.weightKg} kg`,
         `Sex/Age: ${settings.sexAtBirth}/${Math.round(settings.ageYears)}`,
         `Height: ${Math.round(settings.heightCm)} cm`,

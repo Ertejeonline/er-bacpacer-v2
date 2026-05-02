@@ -27,6 +27,9 @@ export type BacUserSettings = {
 
 export type BacEstimate = {
   bacGdl: number
+  peakBacGdl: number
+  peakAtMs: number | null
+  isRisingToPeak: boolean
   absorbedAlcoholGrams: number
   hoursSinceFirstDrink: number
   estimatedSoberAtMs: number | null
@@ -393,6 +396,9 @@ export function getBacEstimateAt(nowMs: number = Date.now()): BacEstimate {
   if (entries.length === 0) {
     return {
       bacGdl: 0,
+      peakBacGdl: 0,
+      peakAtMs: null,
+      isRisingToPeak: false,
       absorbedAlcoholGrams: 0,
       hoursSinceFirstDrink: 0,
       estimatedSoberAtMs: null,
@@ -458,10 +464,17 @@ export function getBacEstimateAt(nowMs: number = Date.now()): BacEstimate {
   let estimatedSoberAtMs: number | null = null
   let hadPositiveBac = bacGdl > 0
   let previousBac = bacGdl
+  let peakBacGdl = bacGdl
+  let peakAtMs = nowMs
 
   for (let t = nowMs + stepMs; t <= simulationEndMs; t += stepMs) {
     const bacAtT = getBacAt(t)
     if (bacAtT > 0) hadPositiveBac = true
+
+    if (bacAtT > peakBacGdl) {
+      peakBacGdl = bacAtT
+      peakAtMs = t
+    }
 
     if (hadPositiveBac && previousBac > 0 && bacAtT <= 0) {
       estimatedSoberAtMs = t
@@ -473,6 +486,9 @@ export function getBacEstimateAt(nowMs: number = Date.now()): BacEstimate {
 
   return {
     bacGdl,
+    peakBacGdl,
+    peakAtMs,
+    isRisingToPeak: peakAtMs > nowMs && peakBacGdl > bacGdl,
     absorbedAlcoholGrams,
     hoursSinceFirstDrink,
     estimatedSoberAtMs,
