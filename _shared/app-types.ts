@@ -51,6 +51,7 @@ export type AppActions = {
   getBacSettings?: () => BacUserSettings
   updateBacSettings?: (next: Partial<BacUserSettings>) => void
   getBacEstimate?: () => BacEstimate
+  previewBacEstimate?: (overrideSettings: Partial<BacUserSettings>) => BacEstimate
 }
 
 export type AppModule = {

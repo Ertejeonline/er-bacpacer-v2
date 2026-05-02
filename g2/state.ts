@@ -74,6 +74,12 @@ const FOOD_PROFILE_ABSORPTION_MULTIPLIER: Record<BacFoodProfile, number> = {
   heavy: 0.6,
 }
 
+const FOOD_PROFILE_BIOAVAILABILITY: Record<BacFoodProfile, number> = {
+  empty: 1.00,
+  light: 0.88,
+  heavy: 0.75,
+}
+
 const BAC_MODEL_ELIMINATION_RATE_PER_HOUR = 0.015
 const BAC_MODEL_ABSORPTION_MINUTES = 30
 const BAC_MODEL_BODY_WATER_FACTOR_MIN = 0.4
@@ -484,6 +490,7 @@ export function getBacEstimateAt(nowMs: number = Date.now()): BacEstimate {
   }
 
   const foodAbsorptionMultiplier = FOOD_PROFILE_ABSORPTION_MULTIPLIER[settings.foodProfile]
+  const foodBioavailability = FOOD_PROFILE_BIOAVAILABILITY[settings.foodProfile]
   const effectiveAbsorptionMinutes = BAC_MODEL_ABSORPTION_MINUTES / foodAbsorptionMultiplier
 
   const getAbsorbedAlcoholGramsAt = (targetMs: number): number => {
@@ -491,7 +498,7 @@ export function getBacEstimateAt(nowMs: number = Date.now()): BacEstimate {
     for (const entry of entries) {
       const elapsedMinutes = Math.max(0, (targetMs - entry.timestampMs) / 60_000)
       const percentFraction = getPercentFraction(entry.percent)
-      const ethanolGrams = entry.ml * percentFraction * 0.789
+      const ethanolGrams = entry.ml * percentFraction * 0.789 * foodBioavailability
       const drinkDurationMinutes = getDrinkDurationMs(entry) / 60_000
       const totalAssimilationMinutes = drinkDurationMinutes + Math.max(0, effectiveAbsorptionMinutes)
       const absorbedFraction = totalAssimilationMinutes <= 0
@@ -534,7 +541,7 @@ export function getBacEstimateAt(nowMs: number = Date.now()): BacEstimate {
 
   const totalEthanolGrams = entries.reduce((sum, entry) => {
     const percentFraction = getPercentFraction(entry.percent)
-    return sum + (entry.ml * percentFraction * 0.789)
+    return sum + (entry.ml * percentFraction * 0.789 * foodBioavailability)
   }, 0)
 
   const distributionLiters = bodyWaterFactor * settings.weightKg
@@ -582,6 +589,14 @@ export function getBacEstimateAt(nowMs: number = Date.now()): BacEstimate {
     hoursSinceFirstDrink,
     estimatedSoberAtMs,
   }
+}
+
+export function getBacEstimateWithSettings(overrideSettings: Partial<BacUserSettings>, nowMs: number = Date.now()): BacEstimate {
+  const saved = state.bacSettings
+  state.bacSettings = normalizeBacSettings({ ...saved, ...overrideSettings })
+  const estimate = getBacEstimateAt(nowMs)
+  state.bacSettings = saved
+  return estimate
 }
 
 export function formatBacGdl(value: number): string {

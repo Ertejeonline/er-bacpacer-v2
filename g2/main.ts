@@ -5,6 +5,7 @@ import { initApp, updateDisplay } from './app'
 import {
   clearDrinkEntries,
   getBacEstimateAt,
+  getBacEstimateWithSettings,
   getBacSettings,
   formatDrinkEntryTime,
   removeDrinkEntry,
@@ -392,6 +393,8 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
     },
 
     getBacEstimate: () => getBacEstimateAt(),
+
+    previewBacEstimate: (overrideSettings) => getBacEstimateWithSettings(overrideSettings),
 
     removeDrinkEntry: (timestampMs: number) => {
       const removed = removeDrinkEntry(timestampMs)

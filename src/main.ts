@@ -219,6 +219,29 @@ async function boot() {
     bacSettingsModal.classList.remove('hidden')
   }
 
+  const updateLiveBacPreview = () => {
+    if (!actions.previewBacEstimate || !bacEstimatePreview || !bacMetabolismLevelInput || !bacWeightKgInput || !bacSexAtBirthInput || !bacDateOfBirthInput || !bacHeightCmInput || !bacFoodProfileInput) return
+    const metabolismLevel = Number(bacMetabolismLevelInput.value)
+    const weightKg = Number(bacWeightKgInput.value)
+    const heightCm = Number(bacHeightCmInput.value)
+    const sexAtBirth = bacSexAtBirthInput.value
+    const dateOfBirth = normalizeDateOfBirth(bacDateOfBirthInput.value)
+    const foodProfile = bacFoodProfileInput.value
+    const validMetabolismLevel = Number.isInteger(metabolismLevel) && metabolismLevel >= 1 && metabolismLevel <= 5
+    const validSexAtBirth = sexAtBirth === 'male' || sexAtBirth === 'female'
+    const validFoodProfile = foodProfile === 'empty' || foodProfile === 'light' || foodProfile === 'heavy'
+    if (!Number.isFinite(weightKg) || !Number.isFinite(heightCm) || !dateOfBirth || !validSexAtBirth || !validFoodProfile || !validMetabolismLevel) return
+    const estimate = actions.previewBacEstimate({
+      metabolismLevel: metabolismLevel as 1 | 2 | 3 | 4 | 5,
+      weightKg,
+      heightCm,
+      sexAtBirth,
+      dateOfBirth,
+      foodProfile,
+    })
+    bacEstimatePreview.textContent = `Estimated BAC now: ${estimate.bacGdl.toFixed(3)} g/dL`
+  }
+
   const renderDrinksLog = () => {
     if (!drinksLogList || !actions.getDrinkEntries) return
 
@@ -438,7 +461,13 @@ async function boot() {
     if (bacMetabolismLevelLabel) {
       bacMetabolismLevelLabel.textContent = METABOLISM_LEVEL_LABELS[level]
     }
+    updateLiveBacPreview()
   })
+  bacWeightKgInput?.addEventListener('input', updateLiveBacPreview)
+  bacHeightCmInput?.addEventListener('input', updateLiveBacPreview)
+  bacSexAtBirthInput?.addEventListener('change', updateLiveBacPreview)
+  bacDateOfBirthInput?.addEventListener('change', updateLiveBacPreview)
+  bacFoodProfileInput?.addEventListener('change', updateLiveBacPreview)
   saveBacSettingsBtn?.addEventListener('click', () => {
     if (
       !actions.updateBacSettings
