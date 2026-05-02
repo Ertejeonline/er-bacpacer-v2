@@ -16,6 +16,7 @@ It lets you log drinks on-glasses, shows a countdown until the next drink window
   - each entry has start and computed end time
 - BAC estimate model:
   - tracks current BAC and peak BAC
+  - shows trend arrows (rising `↗️`, falling `↘️`) in BAC displays
   - estimates sober time
   - supports food profile and elimination/absorption settings
 - Companion web UI:

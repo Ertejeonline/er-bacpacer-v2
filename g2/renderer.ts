@@ -104,10 +104,13 @@ function getMainRightContent(): string {
     const peakAt = estimate.peakAtMs ? formatDrinkEntryTime(estimate.peakAtMs) : '--:--'
     const soberAt = estimate.estimatedSoberAtMs ? formatDrinkEntryTime(estimate.estimatedSoberAtMs) : '--:--'
     const trendMarker = getBacTrendMarker(estimate.isRisingToPeak, estimate.bacGdl)
+    const secondaryLine = estimate.isRisingToPeak
+      ? `Peak BAC at ${peakAt}: ${peakBac}`
+      : 'Peak BAC: ↘️'
 
     return trimForRebuild([
       `Current BAC: ${currentBac}${trendMarker}`,
-      `Peak BAC at ${peakAt}: ${peakBac}`,
+      secondaryLine,
       `Sober at ${soberAt}`,
     ].join('\n\n'))
   }

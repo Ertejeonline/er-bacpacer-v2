@@ -167,4 +167,29 @@ describe('g2/renderer', () => {
     expect(bottomRightUpdate).toBeDefined()
     expect(bottomRightUpdate?.content).toContain('↘️')
   })
+
+  it('replaces detailed peak BAC line with compact down-right trend in summary when falling', async () => {
+    const bridge = makeBridgeMocks()
+    setBridge(bridge as never)
+
+    const now = Date.now()
+    state.drinkEntries = [{
+      ml: 600,
+      percent: 5,
+      timestampMs: now - (120 * 60 * 1000),
+      endTimestampMs: now - (90 * 60 * 1000),
+    }]
+    state.menuVisible = false
+    state.currentMenuItem = 'setupdrink'
+
+    await updateMenuDisplay()
+
+    const summaryUpdate = bridge.textContainerUpgrade.mock.calls
+      .map((args) => args[0] as { containerID?: number; content?: string })
+      .find((payload) => payload.containerID === 4)
+
+    expect(summaryUpdate).toBeDefined()
+    expect(summaryUpdate?.content).toContain('Peak BAC: ↘️')
+    expect(summaryUpdate?.content).not.toContain('Peak BAC at')
+  })
 })
