@@ -441,10 +441,11 @@ function getScreenBody(item: MenuItem): string {
       const settings = state.bacSettings
 
       return [
-        `Weight: ${settings.weightKg} kg`,
-        `Sex/Age: ${settings.sexAtBirth}/${Math.round(settings.ageYears)}`,
-        `Height: ${Math.round(settings.heightCm)} cm`,
         `Food: ${settings.foodProfile}`,
+        `Weight: ${settings.weightKg} kg`,
+        `Height: ${Math.round(settings.heightCm)} cm`,
+        `Sex: ${settings.sexAtBirth}`,
+        `Age: ${Math.round(settings.ageYears)}`,
       ].join('\n')
     }
   }

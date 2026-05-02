@@ -113,9 +113,21 @@
             <h2 id="bacSettingsTitle" class="text-medium-title">BAC settings</h2>
             <p id="bacEstimatePreview" class="text-normal-body"></p>
             <div class="form-grid">
+                <label class="field-block" for="bacFoodProfileInput">
+                    <span class="field-label">Food profile</span>
+                    <select id="bacFoodProfileInput" class="field-input">
+                        <option value="empty">Empty stomach</option>
+                        <option value="light">Light meal</option>
+                        <option value="heavy">Heavy meal</option>
+                    </select>
+                </label>
                 <label class="field-block" for="bacWeightKgInput">
                     <span class="field-label">Weight (kg)</span>
                     <input id="bacWeightKgInput" class="field-input" type="number" min="35" max="250" step="0.5" />
+                </label>
+                <label class="field-block" for="bacHeightCmInput">
+                    <span class="field-label">Height (cm)</span>
+                    <input id="bacHeightCmInput" class="field-input" type="number" min="130" max="230" step="1" />
                 </label>
                 <label class="field-block" for="bacSexAtBirthInput">
                     <span class="field-label">Sex at birth</span>
@@ -127,18 +139,6 @@
                 <label class="field-block" for="bacDateOfBirthInput">
                     <span class="field-label">Date of birth</span>
                     <input id="bacDateOfBirthInput" class="field-input" type="date" />
-                </label>
-                <label class="field-block" for="bacHeightCmInput">
-                    <span class="field-label">Height (cm)</span>
-                    <input id="bacHeightCmInput" class="field-input" type="number" min="130" max="230" step="1" />
-                </label>
-                <label class="field-block" for="bacFoodProfileInput">
-                    <span class="field-label">Food profile</span>
-                    <select id="bacFoodProfileInput" class="field-input">
-                        <option value="empty">Empty stomach</option>
-                        <option value="light">Light meal</option>
-                        <option value="heavy">Heavy meal</option>
-                    </select>
                 </label>
             </div>
             <div class="modal-actions">
