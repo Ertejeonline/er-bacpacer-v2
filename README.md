@@ -18,7 +18,7 @@ It lets you log drinks on-glasses, shows a countdown until the next drink window
   - tracks current BAC and peak BAC
   - shows trend arrows (rising `↗️`, falling `↘️`) in BAC displays
   - estimates sober time
-  - supports food profile and elimination/absorption settings
+  - supports food profile, body water factor mode, and profile inputs
 - Companion web UI:
   - connect to bridge
   - view event log

@@ -17,11 +17,6 @@ export type BacUserSettings = {
   dateOfBirth: string | null
   ageYears: number
   heightCm: number
-  useCustomBodyWaterFactor: boolean
-  customBodyWaterFactor: number
-  bodyWaterFactor: number
-  eliminationRatePerHour: number
-  absorptionMinutes: number
   foodProfile: BacFoodProfile
 }
 

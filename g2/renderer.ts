@@ -444,9 +444,6 @@ function getScreenBody(item: MenuItem): string {
         `Weight: ${settings.weightKg} kg`,
         `Sex/Age: ${settings.sexAtBirth}/${Math.round(settings.ageYears)}`,
         `Height: ${Math.round(settings.heightCm)} cm`,
-        `Body water r: ${settings.bodyWaterFactor.toFixed(2)}${settings.useCustomBodyWaterFactor ? ' (custom)' : ' (auto)'}`,
-        `Elim beta: ${settings.eliminationRatePerHour.toFixed(3)} /h`,
-        `Absorption: ${Math.round(settings.absorptionMinutes)} min`,
         `Food: ${settings.foodProfile}`,
       ].join('\n')
     }

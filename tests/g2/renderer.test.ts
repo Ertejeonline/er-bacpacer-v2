@@ -94,6 +94,7 @@ describe('g2/renderer', () => {
     state.menuVisible = false
     state.currentMenuItem = 'setupdrink'
     await updateMenuDisplay()
+    await updateMenuDisplay()
 
     bridge.rebuildPageContainer.mockClear()
     bridge.textContainerUpgrade.mockClear()
@@ -114,6 +115,24 @@ describe('g2/renderer', () => {
     expect(detailUpdate?.content).toContain('250 ml')
   })
 
+  it('shows simplified BAC settings in summary details', async () => {
+    const bridge = makeBridgeMocks()
+    setBridge(bridge as never)
+
+    state.menuVisible = false
+    state.currentMenuItem = 'setupdrink'
+    await updateMenuDisplay()
+
+    const startupPayload = bridge.createStartUpPageContainer.mock.calls[0]?.[0]
+    const serializedPayload = JSON.stringify(startupPayload)
+
+    expect(startupPayload).toBeDefined()
+    expect(serializedPayload).toContain('Food:')
+    expect(serializedPayload).not.toContain('Elim beta:')
+    expect(serializedPayload).not.toContain('Absorption:')
+    expect(serializedPayload).not.toContain('Body water r:')
+  })
+
   it('toggles standby hud only in standby detail context', () => {
     state.menuVisible = true
     expect(toggleStandbyHudVisibility()).toBe(false)
@@ -126,6 +145,7 @@ describe('g2/renderer', () => {
     state.menuVisible = true
     expect(toggleStandbyHudVisibility()).toBe(false)
   })
+
 
   it('updates top-right countdown only after containers exist', async () => {
     const bridge = makeBridgeMocks()

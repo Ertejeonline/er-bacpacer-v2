@@ -132,15 +132,6 @@
                     <span class="field-label">Height (cm)</span>
                     <input id="bacHeightCmInput" class="field-input" type="number" min="130" max="230" step="1" />
                 </label>
-                <label class="field-block" for="bacEliminationInput">
-                    <span class="field-label">Elimination rate (g/dL/h)</span>
-                    <input id="bacEliminationInput" class="field-input" type="number" min="0.005" max="0.04"
-                        step="0.001" />
-                </label>
-                <label class="field-block" for="bacAbsorptionInput">
-                    <span class="field-label">Absorption minutes</span>
-                    <input id="bacAbsorptionInput" class="field-input" type="number" min="0" max="240" step="1" />
-                </label>
                 <label class="field-block" for="bacFoodProfileInput">
                     <span class="field-label">Food profile</span>
                     <select id="bacFoodProfileInput" class="field-input">
@@ -149,16 +140,6 @@
                         <option value="heavy">Heavy meal</option>
                     </select>
                 </label>
-                <label class="field-checkbox" for="bacUseCustomBodyWaterInput">
-                    <input id="bacUseCustomBodyWaterInput" type="checkbox" />
-                    <span class="field-label">Use custom body water factor</span>
-                </label>
-                <label class="field-block" for="bacCustomBodyWaterInput">
-                    <span class="field-label">Custom body water factor (r)</span>
-                    <input id="bacCustomBodyWaterInput" class="field-input" type="number" min="0.4" max="0.9"
-                        step="0.01" />
-                </label>
-                <p id="bacBodyWaterComputedText" class="text-small-body"></p>
             </div>
             <div class="modal-actions">
                 <button id="saveBacSettingsBtn">Save</button>

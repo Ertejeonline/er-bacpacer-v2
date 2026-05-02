@@ -19,11 +19,6 @@ export type BacUserSettings = {
   dateOfBirth: string | null
   ageYears: number
   heightCm: number
-  useCustomBodyWaterFactor: boolean
-  customBodyWaterFactor: number
-  bodyWaterFactor: number
-  eliminationRatePerHour: number
-  absorptionMinutes: number
   foodProfile: BacFoodProfile
 }
 
@@ -52,9 +47,6 @@ const BAC_SETTINGS_BOUNDS = {
   weightKg: { min: 35, max: 250 },
   ageYears: { min: 18, max: 100 },
   heightCm: { min: 130, max: 230 },
-  bodyWaterFactor: { min: 0.4, max: 0.9 },
-  eliminationRatePerHour: { min: 0.005, max: 0.04 },
-  absorptionMinutes: { min: 0, max: 240 },
 } as const
 
 const FOOD_PROFILE_ABSORPTION_MULTIPLIER: Record<BacFoodProfile, number> = {
@@ -63,17 +55,17 @@ const FOOD_PROFILE_ABSORPTION_MULTIPLIER: Record<BacFoodProfile, number> = {
   heavy: 0.6,
 }
 
+const BAC_MODEL_ELIMINATION_RATE_PER_HOUR = 0.015
+const BAC_MODEL_ABSORPTION_MINUTES = 30
+const BAC_MODEL_BODY_WATER_FACTOR_MIN = 0.4
+const BAC_MODEL_BODY_WATER_FACTOR_MAX = 0.9
+
 const DEFAULT_BAC_SETTINGS: BacUserSettings = {
   weightKg: 75,
   sexAtBirth: 'male',
   dateOfBirth: null,
   ageYears: 30,
   heightCm: 175,
-  useCustomBodyWaterFactor: false,
-  customBodyWaterFactor: 0.68,
-  bodyWaterFactor: 0.68,
-  eliminationRatePerHour: 0.015,
-  absorptionMinutes: 30,
   foodProfile: 'light',
 }
 
@@ -198,8 +190,8 @@ function calculateBodyWaterFactor(settings: {
     ? (2.447 - (0.09516 * settings.ageYears) + (0.1074 * settings.heightCm) + (0.3362 * settings.weightKg))
     : (-2.097 + (0.1069 * settings.heightCm) + (0.2466 * settings.weightKg))
 
-  const rawFactor = settings.weightKg > 0 ? tbwLiters / settings.weightKg : DEFAULT_BAC_SETTINGS.bodyWaterFactor
-  return clampNumber(rawFactor, BAC_SETTINGS_BOUNDS.bodyWaterFactor.min, BAC_SETTINGS_BOUNDS.bodyWaterFactor.max)
+  const rawFactor = settings.weightKg > 0 ? tbwLiters / settings.weightKg : BAC_MODEL_BODY_WATER_FACTOR_MIN
+  return clampNumber(rawFactor, BAC_MODEL_BODY_WATER_FACTOR_MIN, BAC_MODEL_BODY_WATER_FACTOR_MAX)
 }
 
 function normalizeBacSettings(value: Partial<BacUserSettings> | undefined): BacUserSettings {
@@ -229,25 +221,6 @@ function normalizeBacSettings(value: Partial<BacUserSettings> | undefined): BacU
     BAC_SETTINGS_BOUNDS.heightCm.max,
   )
   const sexAtBirth = normalizeSexAtBirth(value?.sexAtBirth)
-  const useCustomBodyWaterFactor = typeof value?.useCustomBodyWaterFactor === 'boolean'
-    ? value.useCustomBodyWaterFactor
-    : state.bacSettings.useCustomBodyWaterFactor
-
-  const legacyBodyWaterFactor = (value as Partial<BacUserSettings> & { bodyWaterFactor?: number })?.bodyWaterFactor
-  const customBodyWaterFactor = clampNumber(
-    typeof value?.customBodyWaterFactor === 'number'
-      ? value.customBodyWaterFactor
-      : (typeof legacyBodyWaterFactor === 'number' ? legacyBodyWaterFactor : state.bacSettings.customBodyWaterFactor),
-    BAC_SETTINGS_BOUNDS.bodyWaterFactor.min,
-    BAC_SETTINGS_BOUNDS.bodyWaterFactor.max,
-  )
-
-  const autoBodyWaterFactor = calculateBodyWaterFactor({
-    sexAtBirth,
-    ageYears,
-    heightCm,
-    weightKg,
-  })
 
   return {
     weightKg,
@@ -255,19 +228,6 @@ function normalizeBacSettings(value: Partial<BacUserSettings> | undefined): BacU
     dateOfBirth,
     ageYears,
     heightCm,
-    useCustomBodyWaterFactor,
-    customBodyWaterFactor,
-    bodyWaterFactor: useCustomBodyWaterFactor ? customBodyWaterFactor : autoBodyWaterFactor,
-    eliminationRatePerHour: clampNumber(
-      typeof value?.eliminationRatePerHour === 'number' ? value.eliminationRatePerHour : state.bacSettings.eliminationRatePerHour,
-      BAC_SETTINGS_BOUNDS.eliminationRatePerHour.min,
-      BAC_SETTINGS_BOUNDS.eliminationRatePerHour.max,
-    ),
-    absorptionMinutes: clampNumber(
-      typeof value?.absorptionMinutes === 'number' ? value.absorptionMinutes : state.bacSettings.absorptionMinutes,
-      BAC_SETTINGS_BOUNDS.absorptionMinutes.min,
-      BAC_SETTINGS_BOUNDS.absorptionMinutes.max,
-    ),
     foodProfile: normalizeFoodProfile(value?.foodProfile),
   }
 }
@@ -485,6 +445,7 @@ export function getBacEstimateAt(nowMs: number = Date.now()): BacEstimate {
   }
 
   const settings = state.bacSettings
+  const bodyWaterFactor = calculateBodyWaterFactor(settings)
   const latestEntry = entries[entries.length - 1]
 
   const getDrinkDurationMs = (entry: DrinkEntry): number => {
@@ -492,7 +453,7 @@ export function getBacEstimateAt(nowMs: number = Date.now()): BacEstimate {
   }
 
   const foodAbsorptionMultiplier = FOOD_PROFILE_ABSORPTION_MULTIPLIER[settings.foodProfile]
-  const effectiveAbsorptionMinutes = settings.absorptionMinutes / foodAbsorptionMultiplier
+  const effectiveAbsorptionMinutes = BAC_MODEL_ABSORPTION_MINUTES / foodAbsorptionMultiplier
 
   const getAbsorbedAlcoholGramsAt = (targetMs: number): number => {
     let absorbedAlcoholGramsAtTarget = 0
@@ -515,7 +476,7 @@ export function getBacEstimateAt(nowMs: number = Date.now()): BacEstimate {
     const hoursSinceFirstDrinkAtTarget = Math.max(0, (targetMs - firstDrinkAtMs) / 3_600_000)
     const absorbedAlcoholGramsAtTarget = getAbsorbedAlcoholGramsAt(targetMs)
 
-    const distributionLiters = settings.bodyWaterFactor * settings.weightKg
+    const distributionLiters = bodyWaterFactor * settings.weightKg
     const rawBacAtTarget = distributionLiters > 0
       ? absorbedAlcoholGramsAtTarget / (distributionLiters * 10)
       : 0
@@ -531,7 +492,7 @@ export function getBacEstimateAt(nowMs: number = Date.now()): BacEstimate {
     }
 
     const effectiveEliminationHours = Math.max(0, hoursSinceFirstDrinkAtTarget - activeLatestDrinkHours)
-    const metabolizedAtTarget = settings.eliminationRatePerHour * effectiveEliminationHours
+    const metabolizedAtTarget = BAC_MODEL_ELIMINATION_RATE_PER_HOUR * effectiveEliminationHours
     return Math.max(0, rawBacAtTarget - metabolizedAtTarget)
   }
 
@@ -545,15 +506,15 @@ export function getBacEstimateAt(nowMs: number = Date.now()): BacEstimate {
     return sum + (entry.ml * percentFraction * 0.789)
   }, 0)
 
-  const distributionLiters = settings.bodyWaterFactor * settings.weightKg
+  const distributionLiters = bodyWaterFactor * settings.weightKg
   const maxRawBac = distributionLiters > 0
     ? totalEthanolGrams / (distributionLiters * 10)
     : 0
 
   const latestDrinkAtMs = entries[entries.length - 1].timestampMs
   const absorptionDoneAtMs = latestDrinkAtMs + (effectiveAbsorptionMinutes * 60_000)
-  const eliminationWindowMs = settings.eliminationRatePerHour > 0
-    ? ((maxRawBac / settings.eliminationRatePerHour) * 3_600_000)
+  const eliminationWindowMs = BAC_MODEL_ELIMINATION_RATE_PER_HOUR > 0
+    ? ((maxRawBac / BAC_MODEL_ELIMINATION_RATE_PER_HOUR) * 3_600_000)
     : 0
   const simulationEndMs = nowMs + Math.min(72 * 3_600_000, Math.max(4 * 3_600_000, (absorptionDoneAtMs - nowMs) + eliminationWindowMs + (2 * 3_600_000)))
 

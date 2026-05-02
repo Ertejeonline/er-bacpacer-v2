@@ -36,11 +36,6 @@ async function boot() {
   const bacSexAtBirthInput = document.getElementById('bacSexAtBirthInput') as HTMLSelectElement | null
   const bacDateOfBirthInput = document.getElementById('bacDateOfBirthInput') as HTMLInputElement | null
   const bacHeightCmInput = document.getElementById('bacHeightCmInput') as HTMLInputElement | null
-  const bacUseCustomBodyWaterInput = document.getElementById('bacUseCustomBodyWaterInput') as HTMLInputElement | null
-  const bacCustomBodyWaterInput = document.getElementById('bacCustomBodyWaterInput') as HTMLInputElement | null
-  const bacBodyWaterComputedText = document.getElementById('bacBodyWaterComputedText')
-  const bacEliminationInput = document.getElementById('bacEliminationInput') as HTMLInputElement | null
-  const bacAbsorptionInput = document.getElementById('bacAbsorptionInput') as HTMLInputElement | null
   const bacFoodProfileInput = document.getElementById('bacFoodProfileInput') as HTMLSelectElement | null
   const saveBacSettingsBtn = document.getElementById('saveBacSettingsBtn') as HTMLButtonElement | null
   const cancelBacSettingsBtn = document.getElementById('cancelBacSettingsBtn') as HTMLButtonElement | null
@@ -194,10 +189,6 @@ async function boot() {
       || !bacSexAtBirthInput
       || !bacDateOfBirthInput
       || !bacHeightCmInput
-      || !bacUseCustomBodyWaterInput
-      || !bacCustomBodyWaterInput
-      || !bacEliminationInput
-      || !bacAbsorptionInput
       || !bacFoodProfileInput
     ) {
       return
@@ -208,17 +199,7 @@ async function boot() {
     bacSexAtBirthInput.value = settings.sexAtBirth
     bacDateOfBirthInput.value = settings.dateOfBirth ?? deriveDateOfBirthFromAgeYears(settings.ageYears)
     bacHeightCmInput.value = String(Math.round(settings.heightCm))
-    bacUseCustomBodyWaterInput.checked = settings.useCustomBodyWaterFactor
-    bacCustomBodyWaterInput.value = settings.customBodyWaterFactor.toFixed(2)
-    bacCustomBodyWaterInput.disabled = !settings.useCustomBodyWaterFactor
-    bacEliminationInput.value = settings.eliminationRatePerHour.toFixed(3)
-    bacAbsorptionInput.value = String(Math.round(settings.absorptionMinutes))
     bacFoodProfileInput.value = settings.foodProfile
-
-    if (bacBodyWaterComputedText) {
-      const modeLabel = settings.useCustomBodyWaterFactor ? 'custom' : 'auto'
-      bacBodyWaterComputedText.textContent = `Effective body water factor: ${settings.bodyWaterFactor.toFixed(2)} (${modeLabel})`
-    }
 
     const estimate = actions.getBacEstimate?.()
     if (bacEstimatePreview) {
@@ -451,10 +432,6 @@ async function boot() {
       || !bacSexAtBirthInput
       || !bacDateOfBirthInput
       || !bacHeightCmInput
-      || !bacUseCustomBodyWaterInput
-      || !bacCustomBodyWaterInput
-      || !bacEliminationInput
-      || !bacAbsorptionInput
       || !bacFoodProfileInput
     ) {
       return
@@ -464,10 +441,6 @@ async function boot() {
     const sexAtBirth = bacSexAtBirthInput.value
     const dateOfBirth = normalizeDateOfBirth(bacDateOfBirthInput.value)
     const heightCm = Number(bacHeightCmInput.value)
-    const useCustomBodyWaterFactor = Boolean(bacUseCustomBodyWaterInput.checked)
-    const customBodyWaterFactor = Number(bacCustomBodyWaterInput.value)
-    const eliminationRatePerHour = Number(bacEliminationInput.value)
-    const absorptionMinutes = Number(bacAbsorptionInput.value)
     const foodProfile = bacFoodProfileInput.value
 
     const validSexAtBirth = sexAtBirth === 'male' || sexAtBirth === 'female'
@@ -475,9 +448,6 @@ async function boot() {
     if (
       !Number.isFinite(weightKg)
       || !Number.isFinite(heightCm)
-      || !Number.isFinite(customBodyWaterFactor)
-      || !Number.isFinite(eliminationRatePerHour)
-      || !Number.isFinite(absorptionMinutes)
       || !dateOfBirth
       || !validSexAtBirth
       || !validFoodProfile
@@ -491,10 +461,6 @@ async function boot() {
       sexAtBirth,
       dateOfBirth,
       heightCm,
-      useCustomBodyWaterFactor,
-      customBodyWaterFactor,
-      eliminationRatePerHour,
-      absorptionMinutes,
       foodProfile,
     })
 
@@ -511,11 +477,6 @@ async function boot() {
     if (event.target === bacSettingsModal) {
       closeBacSettingsModal()
     }
-  })
-
-  bacUseCustomBodyWaterInput?.addEventListener('change', () => {
-    if (!bacCustomBodyWaterInput) return
-    bacCustomBodyWaterInput.disabled = !bacUseCustomBodyWaterInput.checked
   })
 
   void actions.connect().catch((e) => {

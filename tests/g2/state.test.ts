@@ -189,10 +189,6 @@ describe('g2/state', () => {
       ageYears: 200,
       heightCm: 500,
       sexAtBirth: 'female',
-      useCustomBodyWaterFactor: true,
-      customBodyWaterFactor: 1.2,
-      eliminationRatePerHour: 1,
-      absorptionMinutes: -3,
       foodProfile: 'invalid' as never,
     })
 
@@ -200,10 +196,11 @@ describe('g2/state', () => {
     expect(settings.weightKg).toBe(35)
     expect(settings.ageYears).toBe(100)
     expect(settings.heightCm).toBe(230)
-    expect(settings.customBodyWaterFactor).toBe(0.9)
-    expect(settings.bodyWaterFactor).toBe(0.9)
-    expect(settings.eliminationRatePerHour).toBe(0.04)
-    expect(settings.absorptionMinutes).toBe(0)
+    expect('useCustomBodyWaterFactor' in settings).toBe(false)
+    expect('customBodyWaterFactor' in settings).toBe(false)
+    expect('bodyWaterFactor' in settings).toBe(false)
+    expect('eliminationRatePerHour' in settings).toBe(false)
+    expect('absorptionMinutes' in settings).toBe(false)
     expect(settings.foodProfile).toBe('light')
   })
 
@@ -226,18 +223,9 @@ describe('g2/state', () => {
     expect(settings.ageYears).toBeLessThanOrEqual(40)
   })
 
-  it('recomputes auto body water factor when custom mode is disabled', () => {
-    setBacSettings({
-      useCustomBodyWaterFactor: true,
-      customBodyWaterFactor: 0.4,
-    })
-    expect(getBacSettings().bodyWaterFactor).toBe(0.4)
-
-    setBacSettings({ useCustomBodyWaterFactor: false })
-    const settings = getBacSettings()
-    expect(settings.bodyWaterFactor).toBeGreaterThanOrEqual(0.4)
-    expect(settings.bodyWaterFactor).toBeLessThanOrEqual(0.9)
-    expect(settings.bodyWaterFactor).not.toBe(0.4)
+  it('BAC estimate runs without error when body water factor is computed internally', () => {
+    setBacSettings({ weightKg: 80, heightCm: 180, sexAtBirth: 'male', dateOfBirth: '1985-01-01' })
+    expect(() => getBacEstimateAt(Date.now())).not.toThrow()
   })
 
   it('hydrates persisted state from bridge, prunes old entries, and re-saves', async () => {
@@ -260,11 +248,6 @@ describe('g2/state', () => {
         dateOfBirth: '2010-01-01',
         ageYears: 10,
         heightCm: 500,
-        useCustomBodyWaterFactor: false,
-        customBodyWaterFactor: 0.1,
-        bodyWaterFactor: 0.1,
-        eliminationRatePerHour: 0.001,
-        absorptionMinutes: 1000,
         foodProfile: 'heavy',
       },
     }))
@@ -286,8 +269,9 @@ describe('g2/state', () => {
     expect(state.bacSettings.dateOfBirth).toBe('2010-01-01')
     expect(state.bacSettings.ageYears).toBe(18)
     expect(state.bacSettings.heightCm).toBe(230)
-    expect(state.bacSettings.eliminationRatePerHour).toBe(0.005)
-    expect(state.bacSettings.absorptionMinutes).toBe(240)
+    expect('useCustomBodyWaterFactor' in state.bacSettings).toBe(false)
+    expect('eliminationRatePerHour' in state.bacSettings).toBe(false)
+    expect('absorptionMinutes' in state.bacSettings).toBe(false)
     expect(setLocalStorage).toHaveBeenCalledTimes(1)
   })
 
