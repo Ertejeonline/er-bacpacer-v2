@@ -1,4 +1,5 @@
 import type { AppModule } from '../_shared/app-types'
+import { METABOLISM_LEVEL_LABELS } from '../_shared/app-types'
 
 function updateStatus(text: string) {
   console.log(`[ui] ${text}`)
@@ -32,6 +33,8 @@ async function boot() {
   const cancelEditDrinkBtn = document.getElementById('cancelEditDrinkBtn') as HTMLButtonElement | null
   const bacSettingsModal = document.getElementById('bacSettingsModal')
   const bacEstimatePreview = document.getElementById('bacEstimatePreview')
+  const bacMetabolismLevelInput = document.getElementById('bacMetabolismLevelInput') as HTMLInputElement | null
+  const bacMetabolismLevelLabel = document.getElementById('bacMetabolismLevelLabel') as HTMLSpanElement | null
   const bacWeightKgInput = document.getElementById('bacWeightKgInput') as HTMLInputElement | null
   const bacSexAtBirthInput = document.getElementById('bacSexAtBirthInput') as HTMLSelectElement | null
   const bacDateOfBirthInput = document.getElementById('bacDateOfBirthInput') as HTMLInputElement | null
@@ -185,6 +188,7 @@ async function boot() {
     if (
       !actions.getBacSettings
       || !bacSettingsModal
+      || !bacMetabolismLevelInput
       || !bacWeightKgInput
       || !bacSexAtBirthInput
       || !bacDateOfBirthInput
@@ -195,6 +199,10 @@ async function boot() {
     }
 
     const settings = actions.getBacSettings()
+    bacMetabolismLevelInput.value = String(settings.metabolismLevel)
+    if (bacMetabolismLevelLabel) {
+      bacMetabolismLevelLabel.textContent = METABOLISM_LEVEL_LABELS[settings.metabolismLevel]
+    }
     bacWeightKgInput.value = String(settings.weightKg)
     bacSexAtBirthInput.value = settings.sexAtBirth
     bacDateOfBirthInput.value = settings.dateOfBirth ?? deriveDateOfBirthFromAgeYears(settings.ageYears)
@@ -425,9 +433,16 @@ async function boot() {
   })
 
   cancelBacSettingsBtn?.addEventListener('click', closeBacSettingsModal)
+  bacMetabolismLevelInput?.addEventListener('input', () => {
+    const level = Number(bacMetabolismLevelInput.value) as 1 | 2 | 3 | 4 | 5
+    if (bacMetabolismLevelLabel) {
+      bacMetabolismLevelLabel.textContent = METABOLISM_LEVEL_LABELS[level]
+    }
+  })
   saveBacSettingsBtn?.addEventListener('click', () => {
     if (
       !actions.updateBacSettings
+      || !bacMetabolismLevelInput
       || !bacWeightKgInput
       || !bacSexAtBirthInput
       || !bacDateOfBirthInput
@@ -437,6 +452,7 @@ async function boot() {
       return
     }
 
+    const metabolismLevel = Number(bacMetabolismLevelInput.value)
     const weightKg = Number(bacWeightKgInput.value)
     const sexAtBirth = bacSexAtBirthInput.value
     const dateOfBirth = normalizeDateOfBirth(bacDateOfBirthInput.value)
@@ -445,18 +461,21 @@ async function boot() {
 
     const validSexAtBirth = sexAtBirth === 'male' || sexAtBirth === 'female'
     const validFoodProfile = foodProfile === 'empty' || foodProfile === 'light' || foodProfile === 'heavy'
+    const validMetabolismLevel = Number.isInteger(metabolismLevel) && metabolismLevel >= 1 && metabolismLevel <= 5
     if (
       !Number.isFinite(weightKg)
       || !Number.isFinite(heightCm)
       || !dateOfBirth
       || !validSexAtBirth
       || !validFoodProfile
+      || !validMetabolismLevel
     ) {
       updateStatus('Enter valid BAC settings')
       return
     }
 
     actions.updateBacSettings({
+      metabolismLevel: metabolismLevel as 1 | 2 | 3 | 4 | 5,
       weightKg,
       sexAtBirth,
       dateOfBirth,

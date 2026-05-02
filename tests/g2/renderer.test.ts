@@ -127,6 +127,7 @@ describe('g2/renderer', () => {
     const serializedPayload = JSON.stringify(startupPayload)
 
     expect(startupPayload).toBeDefined()
+    expect(serializedPayload).toContain('Metabolism:')
     expect(serializedPayload).toContain('Food:')
     expect(serializedPayload).not.toContain('Elim beta:')
     expect(serializedPayload).not.toContain('Absorption:')

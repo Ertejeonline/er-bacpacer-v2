@@ -113,6 +113,13 @@
             <h2 id="bacSettingsTitle" class="text-medium-title">BAC settings</h2>
             <p id="bacEstimatePreview" class="text-normal-body"></p>
             <div class="form-grid">
+                <label class="field-block" for="bacMetabolismLevelInput">
+                    <span class="field-label">Metabolism</span>
+                    <div class="slider-with-label">
+                        <input id="bacMetabolismLevelInput" class="field-input" type="range" min="1" max="5" step="1" />
+                        <span id="bacMetabolismLevelLabel"></span>
+                    </div>
+                </label>
                 <label class="field-block" for="bacFoodProfileInput">
                     <span class="field-label">Food profile</span>
                     <select id="bacFoodProfileInput" class="field-input">

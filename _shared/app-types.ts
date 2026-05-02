@@ -11,7 +11,18 @@ export type BacFoodProfile = 'empty' | 'light' | 'heavy'
 
 export type BacSexAtBirth = 'male' | 'female'
 
+export type BacMetabolismLevel = 1 | 2 | 3 | 4 | 5
+
+export const METABOLISM_LEVEL_LABELS: Record<BacMetabolismLevel, string> = {
+  1: 'Very slow',
+  2: 'Slow',
+  3: 'Normal',
+  4: 'Fast',
+  5: 'Very fast',
+}
+
 export type BacUserSettings = {
+  metabolismLevel: BacMetabolismLevel
   weightKg: number
   sexAtBirth: BacSexAtBirth
   dateOfBirth: string | null

@@ -8,7 +8,7 @@ import {
   TextContainerUpgrade,
 } from '@evenrealities/even_hub_sdk'
 import { appendEventLog } from '../_shared/log'
-import { formatBacGdl, formatDrinkEntryTime, getBacEstimateAt, getDrinkEntryEndTimestampMs, state, getBridge, type MenuItem } from './state'
+import { formatBacGdl, formatDrinkEntryTime, getBacEstimateAt, getDrinkEntryEndTimestampMs, state, getBridge, METABOLISM_LEVEL_LABELS, type MenuItem } from './state'
 
 const MENU_ITEMS: { id: MenuItem; label: string }[] = [
   { id: 'standBy', label: 'Stand by' },
@@ -441,6 +441,7 @@ function getScreenBody(item: MenuItem): string {
       const settings = state.bacSettings
 
       return [
+        `Metabolism: ${METABOLISM_LEVEL_LABELS[settings.metabolismLevel]}`,
         `Food: ${settings.foodProfile}`,
         `Weight: ${settings.weightKg} kg`,
         `Height: ${Math.round(settings.heightCm)} cm`,

@@ -12,8 +12,26 @@ export type DrinkEntry = {
 
 export type BacFoodProfile = 'empty' | 'light' | 'heavy'
 export type BacSexAtBirth = 'male' | 'female'
+export type BacMetabolismLevel = 1 | 2 | 3 | 4 | 5
+
+export const METABOLISM_LEVEL_LABELS: Record<BacMetabolismLevel, string> = {
+  1: 'Very slow',
+  2: 'Slow',
+  3: 'Normal',
+  4: 'Fast',
+  5: 'Very fast',
+}
+
+const METABOLISM_LEVEL_ELIMINATION_RATE: Record<BacMetabolismLevel, number> = {
+  1: 0.010,
+  2: 0.012,
+  3: 0.015,
+  4: 0.019,
+  5: 0.024,
+}
 
 export type BacUserSettings = {
+  metabolismLevel: BacMetabolismLevel
   weightKg: number
   sexAtBirth: BacSexAtBirth
   dateOfBirth: string | null
@@ -44,6 +62,7 @@ type PersistedState = {
 }
 
 const BAC_SETTINGS_BOUNDS = {
+  metabolismLevel: { min: 1, max: 5 },
   weightKg: { min: 35, max: 250 },
   ageYears: { min: 18, max: 100 },
   heightCm: { min: 130, max: 230 },
@@ -61,6 +80,7 @@ const BAC_MODEL_BODY_WATER_FACTOR_MIN = 0.4
 const BAC_MODEL_BODY_WATER_FACTOR_MAX = 0.9
 
 const DEFAULT_BAC_SETTINGS: BacUserSettings = {
+  metabolismLevel: 3,
   weightKg: 75,
   sexAtBirth: 'male',
   dateOfBirth: null,
@@ -222,7 +242,17 @@ function normalizeBacSettings(value: Partial<BacUserSettings> | undefined): BacU
   )
   const sexAtBirth = normalizeSexAtBirth(value?.sexAtBirth)
 
+  const rawMetabolism = typeof value?.metabolismLevel === 'number'
+    ? value.metabolismLevel
+    : state.bacSettings.metabolismLevel
+  const metabolismLevel = clampNumber(
+    rawMetabolism,
+    BAC_SETTINGS_BOUNDS.metabolismLevel.min,
+    BAC_SETTINGS_BOUNDS.metabolismLevel.max,
+  ) as BacMetabolismLevel
+
   return {
+    metabolismLevel,
     weightKg,
     sexAtBirth,
     dateOfBirth,
@@ -446,6 +476,7 @@ export function getBacEstimateAt(nowMs: number = Date.now()): BacEstimate {
 
   const settings = state.bacSettings
   const bodyWaterFactor = calculateBodyWaterFactor(settings)
+  const eliminationRatePerHour = METABOLISM_LEVEL_ELIMINATION_RATE[settings.metabolismLevel]
   const latestEntry = entries[entries.length - 1]
 
   const getDrinkDurationMs = (entry: DrinkEntry): number => {
@@ -492,7 +523,7 @@ export function getBacEstimateAt(nowMs: number = Date.now()): BacEstimate {
     }
 
     const effectiveEliminationHours = Math.max(0, hoursSinceFirstDrinkAtTarget - activeLatestDrinkHours)
-    const metabolizedAtTarget = BAC_MODEL_ELIMINATION_RATE_PER_HOUR * effectiveEliminationHours
+    const metabolizedAtTarget = eliminationRatePerHour * effectiveEliminationHours
     return Math.max(0, rawBacAtTarget - metabolizedAtTarget)
   }
 
@@ -513,8 +544,8 @@ export function getBacEstimateAt(nowMs: number = Date.now()): BacEstimate {
 
   const latestDrinkAtMs = entries[entries.length - 1].timestampMs
   const absorptionDoneAtMs = latestDrinkAtMs + (effectiveAbsorptionMinutes * 60_000)
-  const eliminationWindowMs = BAC_MODEL_ELIMINATION_RATE_PER_HOUR > 0
-    ? ((maxRawBac / BAC_MODEL_ELIMINATION_RATE_PER_HOUR) * 3_600_000)
+  const eliminationWindowMs = eliminationRatePerHour > 0
+    ? ((maxRawBac / eliminationRatePerHour) * 3_600_000)
     : 0
   const simulationEndMs = nowMs + Math.min(72 * 3_600_000, Math.max(4 * 3_600_000, (absorptionDoneAtMs - nowMs) + eliminationWindowMs + (2 * 3_600_000)))
 
