@@ -73,6 +73,55 @@ async function boot() {
     return Math.max(0, ((ml * fraction) / 0.5) * 60_000)
   }
 
+  const normalizeLooseTimeToHHMM = (value: string): string | null => {
+    const raw = value.trim()
+    if (!raw) return null
+
+    const toFormattedTime = (hours: number, minutes: number) => {
+      if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null
+      if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null
+      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+    }
+
+    const directMatch = /^(\d{1,2}):(\d{1,2})$/.exec(raw)
+    if (directMatch) {
+      return toFormattedTime(Number(directMatch[1]), Number(directMatch[2]))
+    }
+
+    const hourOnlyMatch = /^(\d{1,2})$/.exec(raw)
+    if (hourOnlyMatch) {
+      return toFormattedTime(Number(hourOnlyMatch[1]), 0)
+    }
+
+    const hourWithColonMatch = /^(\d{1,2}):$/.exec(raw)
+    if (hourWithColonMatch) {
+      return toFormattedTime(Number(hourWithColonMatch[1]), 0)
+    }
+
+    const minuteOnlyWithColonMatch = /^:(\d{1,2})$/.exec(raw)
+    if (minuteOnlyWithColonMatch) {
+      return toFormattedTime(0, Number(minuteOnlyWithColonMatch[1]))
+    }
+
+    const compactDigitsMatch = /^(\d{3,4})$/.exec(raw)
+    if (compactDigitsMatch) {
+      const digits = compactDigitsMatch[1]
+      const hoursPart = digits.length === 3 ? digits.slice(0, 1) : digits.slice(0, 2)
+      const minutesPart = digits.slice(-2)
+      return toFormattedTime(Number(hoursPart), Number(minutesPart))
+    }
+
+    return null
+  }
+
+  const normalizeTimeInputInPlace = (input: HTMLInputElement | null): boolean => {
+    if (!input) return false
+    const normalized = normalizeLooseTimeToHHMM(input.value)
+    if (!normalized) return false
+    input.value = normalized
+    return true
+  }
+
   const closeEditDrinkModal = () => {
     editingDrinkTimestampMs = null
     editDrinkModal?.classList.add('hidden')
@@ -289,6 +338,14 @@ async function boot() {
   })
 
   cancelEditDrinkBtn?.addEventListener('click', closeEditDrinkModal)
+  editDrinkTimeInput?.addEventListener('blur', () => {
+    if (!editDrinkTimeInput.value.trim()) return
+    normalizeTimeInputInPlace(editDrinkTimeInput)
+  })
+  editDrinkEndTimeInput?.addEventListener('blur', () => {
+    if (!editDrinkEndTimeInput.value.trim()) return
+    normalizeTimeInputInPlace(editDrinkEndTimeInput)
+  })
   saveEditDrinkBtn?.addEventListener('click', () => {
     if (
       editingDrinkTimestampMs === null
@@ -301,6 +358,8 @@ async function boot() {
       return
     }
 
+    const hasValidStartTime = normalizeTimeInputInPlace(editDrinkTimeInput)
+    const hasValidEndTime = normalizeTimeInputInPlace(editDrinkEndTimeInput)
     const timeValue = editDrinkTimeInput.value
     const endTimeValue = editDrinkEndTimeInput.value
     const timeMatch = /^(\d{2}):(\d{2})$/.exec(timeValue)
@@ -308,7 +367,7 @@ async function boot() {
     const ml = Number(editDrinkMlInput.value)
     const percent = Number(editDrinkPercentInput.value)
 
-    if (!timeMatch || !endTimeMatch || !Number.isFinite(ml) || !Number.isFinite(percent)) {
+    if (!hasValidStartTime || !hasValidEndTime || !timeMatch || !endTimeMatch || !Number.isFinite(ml) || !Number.isFinite(percent)) {
       updateStatus('Enter valid start/end times, amount, and alcohol percentage')
       return
     }

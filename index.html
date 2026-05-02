@@ -83,11 +83,13 @@
             <div class="form-grid">
                 <label class="field-block" for="editDrinkTimeInput">
                     <span class="field-label">Time</span>
-                    <input id="editDrinkTimeInput" class="field-input" type="time" />
+                    <input id="editDrinkTimeInput" class="field-input" type="text" inputmode="numeric"
+                        pattern="^\\d{2}:\\d{2}$" maxlength="5" placeholder="HH:MM" required />
                 </label>
                 <label class="field-block" for="editDrinkEndTimeInput">
                     <span class="field-label">End time</span>
-                    <input id="editDrinkEndTimeInput" class="field-input" type="time" />
+                    <input id="editDrinkEndTimeInput" class="field-input" type="text" inputmode="numeric"
+                        pattern="^\\d{2}:\\d{2}$" maxlength="5" placeholder="HH:MM" required />
                 </label>
                 <label class="field-block" for="editDrinkMlInput">
                     <span class="field-label">Amount (ml)</span>
@@ -99,7 +101,7 @@
                 </label>
             </div>
             <div class="modal-actions">
-                <button id="saveEditDrinkBtn">Save</button>
+                <button id="saveEditDrinkBtn">Set</button>
                 <button id="cancelEditDrinkBtn">Cancel</button>
             </div>
         </div>
