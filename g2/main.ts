@@ -105,8 +105,7 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
     if ((now - lastStandbyHudToggleAtMs) < 250) return true
     lastStandbyHudToggleAtMs = now
 
-    const hidden = toggleStandbyHudVisibility()
-    appendEventLog(`Standby HUD: ${hidden ? 'hidden' : 'visible'}`)
+    toggleStandbyHudVisibility()
     refreshDisplayIfActive()
     return true
   }
@@ -207,7 +206,6 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
 
         // Use native list menu events for robust selection and highlight.
         unsubscribeEvenHubEvent = bridge.onEvenHubEvent((event) => {
-          console.log('EvenHub event:', event)
 
           if (event.listEvent) {
             inferForegroundFromInput()

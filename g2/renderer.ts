@@ -100,7 +100,7 @@ function getMainRightContent(): string {
     const peakBac = formatBacGdl(estimate.peakBacGdl)
     const peakAt = estimate.peakAtMs ? formatDrinkEntryTime(estimate.peakAtMs) : '--:--'
     const soberAt = estimate.estimatedSoberAtMs ? formatDrinkEntryTime(estimate.estimatedSoberAtMs) : '--:--'
-      const risingMarker = estimate.isRisingToPeak ? ' ↗️' : ''
+    const risingMarker = estimate.isRisingToPeak ? ' ↗️' : ''
 
     return trimForRebuild([
       `Current BAC: ${currentBac}${risingMarker}`,
