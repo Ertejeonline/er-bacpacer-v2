@@ -45,7 +45,7 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
 
   const stopRefreshTimer = () => {
     if (refreshTimerId !== null) {
-      window.clearInterval(refreshTimerId)
+      window.clearTimeout(refreshTimerId)
       refreshTimerId = null
     }
   }
@@ -60,10 +60,24 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
   const startRefreshTimer = () => {
     if (!connected) return
     stopRefreshTimer()
-    void updateTopRightCountdownOnly()
-    refreshTimerId = window.setInterval(() => {
-      void updateTopRightCountdownOnly()
-    }, 60_000)
+
+    const tick = () => {
+      if (!connected || !appInForeground) return
+      void updateMenuDisplay()
+    }
+
+    const scheduleIn = (delayMs: number) => {
+      refreshTimerId = window.setTimeout(() => {
+        refreshTimerId = null
+        tick()
+        scheduleIn(60_000)
+      }, delayMs)
+    }
+
+    // Refresh immediately, then align to the next wall-clock minute.
+    tick()
+    const msToNextMinute = 60_000 - (Date.now() % 60_000)
+    scheduleIn(msToNextMinute)
   }
 
   const refreshDisplayIfActive = () => {
@@ -238,6 +252,7 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
                 return
               }
               appInForeground = false
+              stopRefreshTimer()
               return
             }
             if (eventType === OsEventTypeList.ABNORMAL_EXIT_EVENT || eventType === OsEventTypeList.SYSTEM_EXIT_EVENT) {
