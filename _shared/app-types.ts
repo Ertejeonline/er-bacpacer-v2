@@ -6,6 +6,23 @@ export type DrinkEntry = {
   timestampMs: number
 }
 
+export type BacFoodProfile = 'empty' | 'light' | 'heavy'
+
+export type BacUserSettings = {
+  weightKg: number
+  bodyWaterFactor: number
+  eliminationRatePerHour: number
+  absorptionMinutes: number
+  foodProfile: BacFoodProfile
+}
+
+export type BacEstimate = {
+  bacGdl: number
+  absorbedAlcoholGrams: number
+  hoursSinceFirstDrink: number
+  estimatedSoberAtMs: number | null
+}
+
 export type AppActions = {
   connect: () => Promise<void>
   action: () => Promise<void>
@@ -13,6 +30,9 @@ export type AppActions = {
   getDrinkEntries?: () => DrinkEntry[]
   removeDrinkEntry?: (timestampMs: number) => void
   updateDrinkEntry?: (originalTimestampMs: number, nextEntry: DrinkEntry) => boolean
+  getBacSettings?: () => BacUserSettings
+  updateBacSettings?: (next: Partial<BacUserSettings>) => void
+  getBacEstimate?: () => BacEstimate
 }
 
 export type AppModule = {

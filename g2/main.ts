@@ -4,8 +4,11 @@ import { appendEventLog } from '../_shared/log'
 import { initApp, updateDisplay } from './app'
 import {
   clearDrinkEntries,
+  getBacEstimateAt,
+  getBacSettings,
   formatDrinkEntryTime,
   removeDrinkEntry,
+  setBacSettings,
   setMenuItem,
   setFocusedMenuItem,
   setAddDrinkSubmenuVisible,
@@ -326,6 +329,15 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
     },
 
     getDrinkEntries: () => [...state.drinkEntries],
+
+    getBacSettings: () => getBacSettings(),
+
+    updateBacSettings: (next) => {
+      setBacSettings(next)
+      refreshDisplayIfActive()
+    },
+
+    getBacEstimate: () => getBacEstimateAt(),
 
     removeDrinkEntry: (timestampMs: number) => {
       const removed = removeDrinkEntry(timestampMs)

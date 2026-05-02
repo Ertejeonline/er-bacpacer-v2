@@ -9,6 +9,23 @@ export type DrinkEntry = {
   timestampMs: number
 }
 
+export type BacFoodProfile = 'empty' | 'light' | 'heavy'
+
+export type BacUserSettings = {
+  weightKg: number
+  bodyWaterFactor: number
+  eliminationRatePerHour: number
+  absorptionMinutes: number
+  foodProfile: BacFoodProfile
+}
+
+export type BacEstimate = {
+  bacGdl: number
+  absorbedAlcoholGrams: number
+  hoursSinceFirstDrink: number
+  estimatedSoberAtMs: number | null
+}
+
 const PERSISTENCE_KEY = 'bacpacer.persisted.v1'
 
 type PersistedState = {
@@ -17,6 +34,28 @@ type PersistedState = {
   drinkMl: number
   drinkPercent: number
   drinkEntries: DrinkEntry[]
+  bacSettings: BacUserSettings
+}
+
+const BAC_SETTINGS_BOUNDS = {
+  weightKg: { min: 35, max: 250 },
+  bodyWaterFactor: { min: 0.4, max: 0.9 },
+  eliminationRatePerHour: { min: 0.005, max: 0.04 },
+  absorptionMinutes: { min: 0, max: 240 },
+} as const
+
+const FOOD_PROFILE_ABSORPTION_MULTIPLIER: Record<BacFoodProfile, number> = {
+  empty: 1.0,
+  light: 0.8,
+  heavy: 0.6,
+}
+
+const DEFAULT_BAC_SETTINGS: BacUserSettings = {
+  weightKg: 75,
+  bodyWaterFactor: 0.68,
+  eliminationRatePerHour: 0.015,
+  absorptionMinutes: 30,
+  foodProfile: 'light',
 }
 
 const DEFAULT_PERSISTED_STATE: PersistedState = {
@@ -25,6 +64,7 @@ const DEFAULT_PERSISTED_STATE: PersistedState = {
   drinkMl: 175,
   drinkPercent: 13.5,
   drinkEntries: [],
+  bacSettings: { ...DEFAULT_BAC_SETTINGS },
 }
 
 export const state = {
@@ -38,6 +78,7 @@ export const state = {
   drinkMl: DEFAULT_PERSISTED_STATE.drinkMl,
   drinkPercent: DEFAULT_PERSISTED_STATE.drinkPercent,
   drinkEntries: [...DEFAULT_PERSISTED_STATE.drinkEntries],
+  bacSettings: { ...DEFAULT_BAC_SETTINGS },
 }
 
 let _bridge: EvenAppBridge | null = null
@@ -58,6 +99,37 @@ function clampNumber(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
 }
 
+function normalizeFoodProfile(value: unknown): BacFoodProfile {
+  if (value === 'empty' || value === 'light' || value === 'heavy') return value
+  return DEFAULT_BAC_SETTINGS.foodProfile
+}
+
+function normalizeBacSettings(value: Partial<BacUserSettings> | undefined): BacUserSettings {
+  return {
+    weightKg: clampNumber(
+      typeof value?.weightKg === 'number' ? value.weightKg : state.bacSettings.weightKg,
+      BAC_SETTINGS_BOUNDS.weightKg.min,
+      BAC_SETTINGS_BOUNDS.weightKg.max,
+    ),
+    bodyWaterFactor: clampNumber(
+      typeof value?.bodyWaterFactor === 'number' ? value.bodyWaterFactor : state.bacSettings.bodyWaterFactor,
+      BAC_SETTINGS_BOUNDS.bodyWaterFactor.min,
+      BAC_SETTINGS_BOUNDS.bodyWaterFactor.max,
+    ),
+    eliminationRatePerHour: clampNumber(
+      typeof value?.eliminationRatePerHour === 'number' ? value.eliminationRatePerHour : state.bacSettings.eliminationRatePerHour,
+      BAC_SETTINGS_BOUNDS.eliminationRatePerHour.min,
+      BAC_SETTINGS_BOUNDS.eliminationRatePerHour.max,
+    ),
+    absorptionMinutes: clampNumber(
+      typeof value?.absorptionMinutes === 'number' ? value.absorptionMinutes : state.bacSettings.absorptionMinutes,
+      BAC_SETTINGS_BOUNDS.absorptionMinutes.min,
+      BAC_SETTINGS_BOUNDS.absorptionMinutes.max,
+    ),
+    foodProfile: normalizeFoodProfile(value?.foodProfile),
+  }
+}
+
 const DRINK_ENTRY_MAX_AGE_MS = 24 * 60 * 60 * 1000
 
 function toPersistedState(): PersistedState {
@@ -71,6 +143,7 @@ function toPersistedState(): PersistedState {
       percent: clampNumber(entry.percent, 0, 100),
       timestampMs: entry.timestampMs,
     })),
+    bacSettings: normalizeBacSettings(state.bacSettings),
   }
 }
 
@@ -136,6 +209,10 @@ function applyHydratedState(raw: string): void {
       if (hadPrunedEntries) {
         savePersistedState()
       }
+    }
+
+    if (parsed.bacSettings && typeof parsed.bacSettings === 'object') {
+      state.bacSettings = normalizeBacSettings(parsed.bacSettings)
     }
   } catch (err) {
     console.warn('[bacpacer] failed to parse persisted state', err)
@@ -232,6 +309,70 @@ export function setDrinkMl(value: number): void {
 export function setDrinkPercent(value: number): void {
   state.drinkPercent = clampNumber(value, 0, 100)
   savePersistedState()
+}
+
+export function setBacSettings(next: Partial<BacUserSettings>): void {
+  state.bacSettings = normalizeBacSettings({
+    ...state.bacSettings,
+    ...next,
+  })
+  savePersistedState()
+}
+
+export function getBacSettings(): BacUserSettings {
+  return { ...state.bacSettings }
+}
+
+export function getBacEstimateAt(nowMs: number = Date.now()): BacEstimate {
+  const entries = [...state.drinkEntries].sort((a, b) => a.timestampMs - b.timestampMs)
+  if (entries.length === 0) {
+    return {
+      bacGdl: 0,
+      absorbedAlcoholGrams: 0,
+      hoursSinceFirstDrink: 0,
+      estimatedSoberAtMs: null,
+    }
+  }
+
+  const settings = state.bacSettings
+  const firstDrinkAtMs = entries[0].timestampMs
+  const hoursSinceFirstDrink = Math.max(0, (nowMs - firstDrinkAtMs) / 3_600_000)
+
+  const foodAbsorptionMultiplier = FOOD_PROFILE_ABSORPTION_MULTIPLIER[settings.foodProfile]
+  const effectiveAbsorptionMinutes = settings.absorptionMinutes / foodAbsorptionMultiplier
+
+  let absorbedAlcoholGrams = 0
+  for (const entry of entries) {
+    const elapsedMinutes = Math.max(0, (nowMs - entry.timestampMs) / 60_000)
+    const percentFraction = entry.percent > 1 ? entry.percent / 100 : entry.percent
+    const ethanolGrams = entry.ml * percentFraction * 0.789
+    const absorbedFraction = effectiveAbsorptionMinutes <= 0
+      ? 1
+      : Math.min(1, elapsedMinutes / effectiveAbsorptionMinutes)
+    absorbedAlcoholGrams += ethanolGrams * absorbedFraction
+  }
+
+  const distributionLiters = settings.bodyWaterFactor * settings.weightKg
+  const rawBac = distributionLiters > 0
+    ? absorbedAlcoholGrams / (distributionLiters * 10)
+    : 0
+
+  const metabolized = settings.eliminationRatePerHour * hoursSinceFirstDrink
+  const bacGdl = Math.max(0, rawBac - metabolized)
+  const estimatedSoberAtMs = bacGdl > 0
+    ? nowMs + ((bacGdl / settings.eliminationRatePerHour) * 3_600_000)
+    : null
+
+  return {
+    bacGdl,
+    absorbedAlcoholGrams,
+    hoursSinceFirstDrink,
+    estimatedSoberAtMs,
+  }
+}
+
+export function formatBacGdl(value: number): string {
+  return value.toFixed(3)
 }
 
 export function storeCurrentDrink(): DrinkEntry {

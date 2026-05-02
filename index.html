@@ -18,6 +18,8 @@
 
         <button id="drinksLogBtn" style="display:none">Drinks log</button>
 
+        <button id="bacSettingsBtn" style="display:none">BAC settings</button>
+
         <div class="setting-row"></div>
 
         <p id="status" class="text-small-body"></p>
@@ -80,6 +82,44 @@
             <div class="modal-actions">
                 <button id="saveEditDrinkBtn">Save</button>
                 <button id="cancelEditDrinkBtn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="bacSettingsModal" class="modal-overlay hidden" role="dialog" aria-modal="true"
+        aria-labelledby="bacSettingsTitle">
+        <div class="modal-card">
+            <h2 id="bacSettingsTitle" class="text-medium-title">BAC settings</h2>
+            <p id="bacEstimatePreview" class="text-normal-body"></p>
+            <div class="form-grid">
+                <label class="field-block" for="bacWeightKgInput">
+                    <span class="field-label">Weight (kg)</span>
+                    <input id="bacWeightKgInput" class="field-input" type="number" min="35" max="250" step="0.5" />
+                </label>
+                <label class="field-block" for="bacBodyWaterInput">
+                    <span class="field-label">Body water factor (r)</span>
+                    <input id="bacBodyWaterInput" class="field-input" type="number" min="0.4" max="0.9" step="0.01" />
+                </label>
+                <label class="field-block" for="bacEliminationInput">
+                    <span class="field-label">Elimination rate (g/dL/h)</span>
+                    <input id="bacEliminationInput" class="field-input" type="number" min="0.005" max="0.04" step="0.001" />
+                </label>
+                <label class="field-block" for="bacAbsorptionInput">
+                    <span class="field-label">Absorption minutes</span>
+                    <input id="bacAbsorptionInput" class="field-input" type="number" min="0" max="240" step="1" />
+                </label>
+                <label class="field-block" for="bacFoodProfileInput">
+                    <span class="field-label">Food profile</span>
+                    <select id="bacFoodProfileInput" class="field-input">
+                        <option value="empty">Empty stomach</option>
+                        <option value="light">Light meal</option>
+                        <option value="heavy">Heavy meal</option>
+                    </select>
+                </label>
+            </div>
+            <div class="modal-actions">
+                <button id="saveBacSettingsBtn">Save</button>
+                <button id="cancelBacSettingsBtn">Cancel</button>
             </div>
         </div>
     </div>

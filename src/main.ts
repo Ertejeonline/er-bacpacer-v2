@@ -15,6 +15,7 @@ async function boot() {
   const confirmResetBtn = document.getElementById('confirmResetBtn') as HTMLButtonElement | null
   const cancelResetBtn = document.getElementById('cancelResetBtn') as HTMLButtonElement | null
   const drinksLogBtn = document.getElementById('drinksLogBtn') as HTMLButtonElement | null
+  const bacSettingsBtn = document.getElementById('bacSettingsBtn') as HTMLButtonElement | null
   const drinksLogModal = document.getElementById('drinksLogModal')
   const drinksLogList = document.getElementById('drinksLogList')
   const closeDrinksLogBtn = document.getElementById('closeDrinksLogBtn') as HTMLButtonElement | null
@@ -28,6 +29,15 @@ async function boot() {
   const editDrinkPercentInput = document.getElementById('editDrinkPercentInput') as HTMLInputElement | null
   const saveEditDrinkBtn = document.getElementById('saveEditDrinkBtn') as HTMLButtonElement | null
   const cancelEditDrinkBtn = document.getElementById('cancelEditDrinkBtn') as HTMLButtonElement | null
+  const bacSettingsModal = document.getElementById('bacSettingsModal')
+  const bacEstimatePreview = document.getElementById('bacEstimatePreview')
+  const bacWeightKgInput = document.getElementById('bacWeightKgInput') as HTMLInputElement | null
+  const bacBodyWaterInput = document.getElementById('bacBodyWaterInput') as HTMLInputElement | null
+  const bacEliminationInput = document.getElementById('bacEliminationInput') as HTMLInputElement | null
+  const bacAbsorptionInput = document.getElementById('bacAbsorptionInput') as HTMLInputElement | null
+  const bacFoodProfileInput = document.getElementById('bacFoodProfileInput') as HTMLSelectElement | null
+  const saveBacSettingsBtn = document.getElementById('saveBacSettingsBtn') as HTMLButtonElement | null
+  const cancelBacSettingsBtn = document.getElementById('cancelBacSettingsBtn') as HTMLButtonElement | null
 
   document.title = `${app.name} – Even G2`
   updateStatus(app.initialStatus ?? `${app.name} app ready`)
@@ -66,6 +76,40 @@ async function boot() {
   const closeDeleteDrinkModal = () => {
     pendingDeleteTimestampMs = null
     confirmDeleteDrinkModal?.classList.add('hidden')
+  }
+
+  const closeBacSettingsModal = () => {
+    bacSettingsModal?.classList.add('hidden')
+  }
+
+  const openBacSettingsModal = () => {
+    if (
+      !actions.getBacSettings
+      || !bacSettingsModal
+      || !bacWeightKgInput
+      || !bacBodyWaterInput
+      || !bacEliminationInput
+      || !bacAbsorptionInput
+      || !bacFoodProfileInput
+    ) {
+      return
+    }
+
+    const settings = actions.getBacSettings()
+    bacWeightKgInput.value = String(settings.weightKg)
+    bacBodyWaterInput.value = settings.bodyWaterFactor.toFixed(2)
+    bacEliminationInput.value = settings.eliminationRatePerHour.toFixed(3)
+    bacAbsorptionInput.value = String(Math.round(settings.absorptionMinutes))
+    bacFoodProfileInput.value = settings.foodProfile
+
+    const estimate = actions.getBacEstimate?.()
+    if (bacEstimatePreview) {
+      bacEstimatePreview.textContent = estimate
+        ? `Estimated BAC now: ${estimate.bacGdl.toFixed(3)} g/dL`
+        : ''
+    }
+
+    bacSettingsModal.classList.remove('hidden')
   }
 
   const renderDrinksLog = () => {
@@ -176,6 +220,11 @@ async function boot() {
     drinksLogBtn.addEventListener('click', openDrinksLog)
   }
 
+  if (actions.getBacSettings && bacSettingsBtn) {
+    bacSettingsBtn.style.display = ''
+    bacSettingsBtn.addEventListener('click', openBacSettingsModal)
+  }
+
   closeDrinksLogBtn?.addEventListener('click', closeDrinksLog)
   drinksLogModal?.addEventListener('click', (event) => {
     if (event.target === drinksLogModal) {
@@ -246,6 +295,60 @@ async function boot() {
   editDrinkModal?.addEventListener('click', (event) => {
     if (event.target === editDrinkModal) {
       closeEditDrinkModal()
+    }
+  })
+
+  cancelBacSettingsBtn?.addEventListener('click', closeBacSettingsModal)
+  saveBacSettingsBtn?.addEventListener('click', () => {
+    if (
+      !actions.updateBacSettings
+      || !bacWeightKgInput
+      || !bacBodyWaterInput
+      || !bacEliminationInput
+      || !bacAbsorptionInput
+      || !bacFoodProfileInput
+    ) {
+      return
+    }
+
+    const weightKg = Number(bacWeightKgInput.value)
+    const bodyWaterFactor = Number(bacBodyWaterInput.value)
+    const eliminationRatePerHour = Number(bacEliminationInput.value)
+    const absorptionMinutes = Number(bacAbsorptionInput.value)
+    const foodProfile = bacFoodProfileInput.value
+
+    const validFoodProfile = foodProfile === 'empty' || foodProfile === 'light' || foodProfile === 'heavy'
+    if (
+      !Number.isFinite(weightKg)
+      || !Number.isFinite(bodyWaterFactor)
+      || !Number.isFinite(eliminationRatePerHour)
+      || !Number.isFinite(absorptionMinutes)
+      || !validFoodProfile
+    ) {
+      updateStatus('Enter valid BAC settings')
+      return
+    }
+
+    actions.updateBacSettings({
+      weightKg,
+      bodyWaterFactor,
+      eliminationRatePerHour,
+      absorptionMinutes,
+      foodProfile,
+    })
+
+    const estimate = actions.getBacEstimate?.()
+    if (estimate) {
+      updateStatus(`BAC settings saved. Est. BAC: ${estimate.bacGdl.toFixed(3)} g/dL`)
+    } else {
+      updateStatus('BAC settings saved')
+    }
+
+    closeBacSettingsModal()
+  })
+  bacSettingsModal?.addEventListener('click', (event) => {
+    if (event.target === bacSettingsModal) {
+      closeBacSettingsModal()
     }
   })
 

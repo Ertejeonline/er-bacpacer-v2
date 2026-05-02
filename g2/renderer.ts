@@ -8,7 +8,7 @@ import {
   TextContainerUpgrade,
 } from '@evenrealities/even_hub_sdk'
 import { appendEventLog } from '../_shared/log'
-import { formatDrinkEntryTime, state, getBridge, type MenuItem } from './state'
+import { formatBacGdl, formatDrinkEntryTime, getBacEstimateAt, state, getBridge, type MenuItem } from './state'
 
 const MENU_ITEMS: { id: MenuItem; label: string }[] = [
   { id: 'home', label: '' },
@@ -351,8 +351,26 @@ function getScreenBody(item: MenuItem): string {
       return ''
     case 'adddrink':
       return `Add drink\nVolume: ${state.drinkMl} ml\nStrength: ${state.drinkPercent}%`
-    case 'setupdrink':
-      return 'Bacpacer v1.0'
+    case 'setupdrink': {
+      const estimate = getBacEstimateAt()
+      const settings = state.bacSettings
+      const soberAt = estimate.estimatedSoberAtMs
+        ? formatDrinkEntryTime(estimate.estimatedSoberAtMs)
+        : '--:--'
+
+      return [
+        'Summary',
+        `Est. BAC: ${formatBacGdl(estimate.bacGdl)} g/dL`,
+        `Sober est: ${soberAt}`,
+        '',
+        'Settings',
+        `Weight: ${settings.weightKg} kg`,
+        `Body water r: ${settings.bodyWaterFactor.toFixed(2)}`,
+        `Elim beta: ${settings.eliminationRatePerHour.toFixed(3)} /h`,
+        `Absorption: ${Math.round(settings.absorptionMinutes)} min`,
+        `Food: ${settings.foodProfile}`,
+      ].join('\n')
+    }
   }
 }
 

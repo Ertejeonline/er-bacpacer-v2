@@ -142,6 +142,16 @@ button:disabled {
   font: inherit;
 }
 
+select.field-input {
+  appearance: none;
+}
+
+#bacEstimatePreview {
+  margin-top: 8px;
+  margin-bottom: 4px;
+  color: var(--color-text-dim);
+}
+
 .drinks-log-list {
   max-height: 320px;
   overflow-y: auto;
