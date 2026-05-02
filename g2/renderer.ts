@@ -11,7 +11,7 @@ import { appendEventLog } from '../_shared/log'
 import { formatBacGdl, formatDrinkEntryTime, getBacEstimateAt, state, getBridge, type MenuItem } from './state'
 
 const MENU_ITEMS: { id: MenuItem; label: string }[] = [
-  { id: 'home', label: '' },
+  { id: 'home', label: 'Stand by' },
   { id: 'adddrink', label: 'Log a drink' },
   { id: 'setupdrink', label: 'Summary' },
 ]
@@ -242,7 +242,7 @@ async function updateMenuDisplayInternal(): Promise<void> {
 
   const breadcrumb = state.menuVisible
     ? (state.addDrinkSubmenuVisible ? 'Log a drink' : 'Menu')
-    : `${getMenuItemLabel(state.currentMenuItem)}`
+    : (state.currentMenuItem === 'home' ? '' : `${getMenuItemLabel(state.currentMenuItem)}`)
 
   const targetLayoutMode: LayoutMode = !state.menuVisible
     ? 'detail'
