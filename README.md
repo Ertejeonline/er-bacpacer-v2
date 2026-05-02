@@ -39,6 +39,8 @@ It lets you log drinks on-glasses, shows a countdown until the next drink window
 - `npm run build`: production build to `dist/`
 - `npm run preview`: preview production build locally
 - `npm run pack`: build and create `bacpacer.ehpk`
+- `npm run test`: run unit tests once (Vitest)
+- `npm run test:watch`: run unit tests in watch mode
 
 ## Local Development
 

@@ -7,7 +7,9 @@
     "preview": "vite preview",
     "qr": "evenhub qr --http --port 5173",
     "simulator": "evenhub-simulator http://localhost:5173",
-    "pack": "npm run build && evenhub pack app.json dist -o bacpacer.ehpk"
+    "pack": "npm run build && evenhub pack app.json dist -o bacpacer.ehpk",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@evenrealities/even_hub_sdk": "^0.0.10",
@@ -20,6 +22,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "typescript": "^5.9.3",
-    "vite": "^6.0.0"
+    "vite": "^6.0.0",
+    "vitest": "^4.1.5"
   }
 }
