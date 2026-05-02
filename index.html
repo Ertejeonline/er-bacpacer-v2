@@ -11,19 +11,34 @@
 <body>
 
     <div id="app">
-        <p id="subtitle" class="text-normal-body"><strong class="text-vlarge-title">Even G2 Bacpacer</strong><br>A
-            tempo pacer app for wise drinking.</p>
+        <header class="app-header">
+            <p class="eyebrow text-detail">Even G2 companion</p>
+            <h1 class="text-large-title">Bacpacer</h1>
+            <p id="subtitle" class="text-normal-body">A pace assistant for wiser drinking decisions.</p>
+        </header>
 
-        <button id="resetBtn" style="display:none">Reset Drinks</button>
+        <section class="control-panel" aria-label="Quick actions">
+            <div class="action-list">
+                <button id="resetBtn" class="app-btn app-btn--danger" style="display:none">
+                    <span class="btn-icon" aria-hidden="true">↺</span>
+                    <span class="btn-label">Reset Drinks</span>
+                </button>
 
-        <button id="drinksLogBtn" style="display:none">Drinks log</button>
+                <button id="drinksLogBtn" class="app-btn app-btn--primary" style="display:none">
+                    <span class="btn-icon" aria-hidden="true">≣</span>
+                    <span class="btn-label">Drinks log</span>
+                </button>
 
-        <button id="bacSettingsBtn" style="display:none">BAC settings</button>
-
-        <div class="setting-row"></div>
+                <button id="bacSettingsBtn" class="app-btn app-btn--primary" style="display:none">
+                    <span class="btn-icon" aria-hidden="true">⚙</span>
+                    <span class="btn-label">BAC settings</span>
+                </button>
+            </div>
+        </section>
 
         <p id="status" class="text-small-body"></p>
 
+        <p class="panel-title text-normal-title">Event log</p>
         <textarea id="event-log" class="event-log" readonly></textarea>
     </div>
 

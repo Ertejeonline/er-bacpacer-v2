@@ -47,7 +47,14 @@ async function boot() {
   document.title = `${app.name} – Even G2`
   updateStatus(app.initialStatus ?? `${app.name} app ready`)
 
-  if (resetBtn && app.resetLabel) resetBtn.textContent = app.resetLabel
+  if (resetBtn && app.resetLabel) {
+    const label = resetBtn.querySelector('.btn-label')
+    if (label) {
+      label.textContent = app.resetLabel
+    } else {
+      resetBtn.textContent = app.resetLabel
+    }
+  }
 
   const actions = await app.createActions(updateStatus)
   let pendingDeleteTimestampMs: number | null = null
