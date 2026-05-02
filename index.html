@@ -96,9 +96,20 @@
                     <span class="field-label">Weight (kg)</span>
                     <input id="bacWeightKgInput" class="field-input" type="number" min="35" max="250" step="0.5" />
                 </label>
-                <label class="field-block" for="bacBodyWaterInput">
-                    <span class="field-label">Body water factor (r)</span>
-                    <input id="bacBodyWaterInput" class="field-input" type="number" min="0.4" max="0.9" step="0.01" />
+                <label class="field-block" for="bacSexAtBirthInput">
+                    <span class="field-label">Sex at birth</span>
+                    <select id="bacSexAtBirthInput" class="field-input">
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                    </select>
+                </label>
+                <label class="field-block" for="bacAgeYearsInput">
+                    <span class="field-label">Age (years)</span>
+                    <input id="bacAgeYearsInput" class="field-input" type="number" min="18" max="100" step="1" />
+                </label>
+                <label class="field-block" for="bacHeightCmInput">
+                    <span class="field-label">Height (cm)</span>
+                    <input id="bacHeightCmInput" class="field-input" type="number" min="130" max="230" step="1" />
                 </label>
                 <label class="field-block" for="bacEliminationInput">
                     <span class="field-label">Elimination rate (g/dL/h)</span>
@@ -117,6 +128,16 @@
                         <option value="heavy">Heavy meal</option>
                     </select>
                 </label>
+                <label class="field-checkbox" for="bacUseCustomBodyWaterInput">
+                    <input id="bacUseCustomBodyWaterInput" type="checkbox" />
+                    <span class="field-label">Use custom body water factor</span>
+                </label>
+                <label class="field-block" for="bacCustomBodyWaterInput">
+                    <span class="field-label">Custom body water factor (r)</span>
+                    <input id="bacCustomBodyWaterInput" class="field-input" type="number" min="0.4" max="0.9"
+                        step="0.01" />
+                </label>
+                <p id="bacBodyWaterComputedText" class="text-small-body"></p>
             </div>
             <div class="modal-actions">
                 <button id="saveBacSettingsBtn">Save</button>

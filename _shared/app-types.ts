@@ -8,8 +8,15 @@ export type DrinkEntry = {
 
 export type BacFoodProfile = 'empty' | 'light' | 'heavy'
 
+export type BacSexAtBirth = 'male' | 'female'
+
 export type BacUserSettings = {
   weightKg: number
+  sexAtBirth: BacSexAtBirth
+  ageYears: number
+  heightCm: number
+  useCustomBodyWaterFactor: boolean
+  customBodyWaterFactor: number
   bodyWaterFactor: number
   eliminationRatePerHour: number
   absorptionMinutes: number

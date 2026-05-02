@@ -127,6 +127,16 @@ button:disabled {
   gap: 6px;
 }
 
+.field-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.field-checkbox input {
+  margin: 0;
+}
+
 .field-label {
   font-size: 14px;
   color: var(--color-text-dim);

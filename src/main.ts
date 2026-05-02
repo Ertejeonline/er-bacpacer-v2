@@ -32,7 +32,12 @@ async function boot() {
   const bacSettingsModal = document.getElementById('bacSettingsModal')
   const bacEstimatePreview = document.getElementById('bacEstimatePreview')
   const bacWeightKgInput = document.getElementById('bacWeightKgInput') as HTMLInputElement | null
-  const bacBodyWaterInput = document.getElementById('bacBodyWaterInput') as HTMLInputElement | null
+  const bacSexAtBirthInput = document.getElementById('bacSexAtBirthInput') as HTMLSelectElement | null
+  const bacAgeYearsInput = document.getElementById('bacAgeYearsInput') as HTMLInputElement | null
+  const bacHeightCmInput = document.getElementById('bacHeightCmInput') as HTMLInputElement | null
+  const bacUseCustomBodyWaterInput = document.getElementById('bacUseCustomBodyWaterInput') as HTMLInputElement | null
+  const bacCustomBodyWaterInput = document.getElementById('bacCustomBodyWaterInput') as HTMLInputElement | null
+  const bacBodyWaterComputedText = document.getElementById('bacBodyWaterComputedText')
   const bacEliminationInput = document.getElementById('bacEliminationInput') as HTMLInputElement | null
   const bacAbsorptionInput = document.getElementById('bacAbsorptionInput') as HTMLInputElement | null
   const bacFoodProfileInput = document.getElementById('bacFoodProfileInput') as HTMLSelectElement | null
@@ -87,7 +92,11 @@ async function boot() {
       !actions.getBacSettings
       || !bacSettingsModal
       || !bacWeightKgInput
-      || !bacBodyWaterInput
+      || !bacSexAtBirthInput
+      || !bacAgeYearsInput
+      || !bacHeightCmInput
+      || !bacUseCustomBodyWaterInput
+      || !bacCustomBodyWaterInput
       || !bacEliminationInput
       || !bacAbsorptionInput
       || !bacFoodProfileInput
@@ -97,10 +106,20 @@ async function boot() {
 
     const settings = actions.getBacSettings()
     bacWeightKgInput.value = String(settings.weightKg)
-    bacBodyWaterInput.value = settings.bodyWaterFactor.toFixed(2)
+    bacSexAtBirthInput.value = settings.sexAtBirth
+    bacAgeYearsInput.value = String(Math.round(settings.ageYears))
+    bacHeightCmInput.value = String(Math.round(settings.heightCm))
+    bacUseCustomBodyWaterInput.checked = settings.useCustomBodyWaterFactor
+    bacCustomBodyWaterInput.value = settings.customBodyWaterFactor.toFixed(2)
+    bacCustomBodyWaterInput.disabled = !settings.useCustomBodyWaterFactor
     bacEliminationInput.value = settings.eliminationRatePerHour.toFixed(3)
     bacAbsorptionInput.value = String(Math.round(settings.absorptionMinutes))
     bacFoodProfileInput.value = settings.foodProfile
+
+    if (bacBodyWaterComputedText) {
+      const modeLabel = settings.useCustomBodyWaterFactor ? 'custom' : 'auto'
+      bacBodyWaterComputedText.textContent = `Effective body water factor: ${settings.bodyWaterFactor.toFixed(2)} (${modeLabel})`
+    }
 
     const estimate = actions.getBacEstimate?.()
     if (bacEstimatePreview) {
@@ -303,7 +322,11 @@ async function boot() {
     if (
       !actions.updateBacSettings
       || !bacWeightKgInput
-      || !bacBodyWaterInput
+      || !bacSexAtBirthInput
+      || !bacAgeYearsInput
+      || !bacHeightCmInput
+      || !bacUseCustomBodyWaterInput
+      || !bacCustomBodyWaterInput
       || !bacEliminationInput
       || !bacAbsorptionInput
       || !bacFoodProfileInput
@@ -312,17 +335,25 @@ async function boot() {
     }
 
     const weightKg = Number(bacWeightKgInput.value)
-    const bodyWaterFactor = Number(bacBodyWaterInput.value)
+    const sexAtBirth = bacSexAtBirthInput.value
+    const ageYears = Number(bacAgeYearsInput.value)
+    const heightCm = Number(bacHeightCmInput.value)
+    const useCustomBodyWaterFactor = Boolean(bacUseCustomBodyWaterInput.checked)
+    const customBodyWaterFactor = Number(bacCustomBodyWaterInput.value)
     const eliminationRatePerHour = Number(bacEliminationInput.value)
     const absorptionMinutes = Number(bacAbsorptionInput.value)
     const foodProfile = bacFoodProfileInput.value
 
+    const validSexAtBirth = sexAtBirth === 'male' || sexAtBirth === 'female'
     const validFoodProfile = foodProfile === 'empty' || foodProfile === 'light' || foodProfile === 'heavy'
     if (
       !Number.isFinite(weightKg)
-      || !Number.isFinite(bodyWaterFactor)
+      || !Number.isFinite(ageYears)
+      || !Number.isFinite(heightCm)
+      || !Number.isFinite(customBodyWaterFactor)
       || !Number.isFinite(eliminationRatePerHour)
       || !Number.isFinite(absorptionMinutes)
+      || !validSexAtBirth
       || !validFoodProfile
     ) {
       updateStatus('Enter valid BAC settings')
@@ -331,7 +362,11 @@ async function boot() {
 
     actions.updateBacSettings({
       weightKg,
-      bodyWaterFactor,
+      sexAtBirth,
+      ageYears,
+      heightCm,
+      useCustomBodyWaterFactor,
+      customBodyWaterFactor,
       eliminationRatePerHour,
       absorptionMinutes,
       foodProfile,
@@ -350,6 +385,11 @@ async function boot() {
     if (event.target === bacSettingsModal) {
       closeBacSettingsModal()
     }
+  })
+
+  bacUseCustomBodyWaterInput?.addEventListener('change', () => {
+    if (!bacCustomBodyWaterInput) return
+    bacCustomBodyWaterInput.disabled = !bacUseCustomBodyWaterInput.checked
   })
 
   void actions.connect().catch((e) => {

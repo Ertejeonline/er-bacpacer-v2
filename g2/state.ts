@@ -10,9 +10,15 @@ export type DrinkEntry = {
 }
 
 export type BacFoodProfile = 'empty' | 'light' | 'heavy'
+export type BacSexAtBirth = 'male' | 'female'
 
 export type BacUserSettings = {
   weightKg: number
+  sexAtBirth: BacSexAtBirth
+  ageYears: number
+  heightCm: number
+  useCustomBodyWaterFactor: boolean
+  customBodyWaterFactor: number
   bodyWaterFactor: number
   eliminationRatePerHour: number
   absorptionMinutes: number
@@ -39,6 +45,8 @@ type PersistedState = {
 
 const BAC_SETTINGS_BOUNDS = {
   weightKg: { min: 35, max: 250 },
+  ageYears: { min: 18, max: 100 },
+  heightCm: { min: 130, max: 230 },
   bodyWaterFactor: { min: 0.4, max: 0.9 },
   eliminationRatePerHour: { min: 0.005, max: 0.04 },
   absorptionMinutes: { min: 0, max: 240 },
@@ -52,6 +60,11 @@ const FOOD_PROFILE_ABSORPTION_MULTIPLIER: Record<BacFoodProfile, number> = {
 
 const DEFAULT_BAC_SETTINGS: BacUserSettings = {
   weightKg: 75,
+  sexAtBirth: 'male',
+  ageYears: 30,
+  heightCm: 175,
+  useCustomBodyWaterFactor: false,
+  customBodyWaterFactor: 0.68,
   bodyWaterFactor: 0.68,
   eliminationRatePerHour: 0.015,
   absorptionMinutes: 30,
@@ -104,18 +117,70 @@ function normalizeFoodProfile(value: unknown): BacFoodProfile {
   return DEFAULT_BAC_SETTINGS.foodProfile
 }
 
+function normalizeSexAtBirth(value: unknown): BacSexAtBirth {
+  if (value === 'male' || value === 'female') return value
+  return DEFAULT_BAC_SETTINGS.sexAtBirth
+}
+
+function calculateBodyWaterFactor(settings: {
+  sexAtBirth: BacSexAtBirth
+  ageYears: number
+  heightCm: number
+  weightKg: number
+}): number {
+  const tbwLiters = settings.sexAtBirth === 'male'
+    ? (2.447 - (0.09516 * settings.ageYears) + (0.1074 * settings.heightCm) + (0.3362 * settings.weightKg))
+    : (-2.097 + (0.1069 * settings.heightCm) + (0.2466 * settings.weightKg))
+
+  const rawFactor = settings.weightKg > 0 ? tbwLiters / settings.weightKg : DEFAULT_BAC_SETTINGS.bodyWaterFactor
+  return clampNumber(rawFactor, BAC_SETTINGS_BOUNDS.bodyWaterFactor.min, BAC_SETTINGS_BOUNDS.bodyWaterFactor.max)
+}
+
 function normalizeBacSettings(value: Partial<BacUserSettings> | undefined): BacUserSettings {
+  const weightKg = clampNumber(
+    typeof value?.weightKg === 'number' ? value.weightKg : state.bacSettings.weightKg,
+    BAC_SETTINGS_BOUNDS.weightKg.min,
+    BAC_SETTINGS_BOUNDS.weightKg.max,
+  )
+  const ageYears = clampNumber(
+    typeof value?.ageYears === 'number' ? value.ageYears : state.bacSettings.ageYears,
+    BAC_SETTINGS_BOUNDS.ageYears.min,
+    BAC_SETTINGS_BOUNDS.ageYears.max,
+  )
+  const heightCm = clampNumber(
+    typeof value?.heightCm === 'number' ? value.heightCm : state.bacSettings.heightCm,
+    BAC_SETTINGS_BOUNDS.heightCm.min,
+    BAC_SETTINGS_BOUNDS.heightCm.max,
+  )
+  const sexAtBirth = normalizeSexAtBirth(value?.sexAtBirth)
+  const useCustomBodyWaterFactor = typeof value?.useCustomBodyWaterFactor === 'boolean'
+    ? value.useCustomBodyWaterFactor
+    : state.bacSettings.useCustomBodyWaterFactor
+
+  const legacyBodyWaterFactor = (value as Partial<BacUserSettings> & { bodyWaterFactor?: number })?.bodyWaterFactor
+  const customBodyWaterFactor = clampNumber(
+    typeof value?.customBodyWaterFactor === 'number'
+      ? value.customBodyWaterFactor
+      : (typeof legacyBodyWaterFactor === 'number' ? legacyBodyWaterFactor : state.bacSettings.customBodyWaterFactor),
+    BAC_SETTINGS_BOUNDS.bodyWaterFactor.min,
+    BAC_SETTINGS_BOUNDS.bodyWaterFactor.max,
+  )
+
+  const autoBodyWaterFactor = calculateBodyWaterFactor({
+    sexAtBirth,
+    ageYears,
+    heightCm,
+    weightKg,
+  })
+
   return {
-    weightKg: clampNumber(
-      typeof value?.weightKg === 'number' ? value.weightKg : state.bacSettings.weightKg,
-      BAC_SETTINGS_BOUNDS.weightKg.min,
-      BAC_SETTINGS_BOUNDS.weightKg.max,
-    ),
-    bodyWaterFactor: clampNumber(
-      typeof value?.bodyWaterFactor === 'number' ? value.bodyWaterFactor : state.bacSettings.bodyWaterFactor,
-      BAC_SETTINGS_BOUNDS.bodyWaterFactor.min,
-      BAC_SETTINGS_BOUNDS.bodyWaterFactor.max,
-    ),
+    weightKg,
+    sexAtBirth,
+    ageYears,
+    heightCm,
+    useCustomBodyWaterFactor,
+    customBodyWaterFactor,
+    bodyWaterFactor: useCustomBodyWaterFactor ? customBodyWaterFactor : autoBodyWaterFactor,
     eliminationRatePerHour: clampNumber(
       typeof value?.eliminationRatePerHour === 'number' ? value.eliminationRatePerHour : state.bacSettings.eliminationRatePerHour,
       BAC_SETTINGS_BOUNDS.eliminationRatePerHour.min,
