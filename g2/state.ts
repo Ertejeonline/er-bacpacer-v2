@@ -16,6 +16,7 @@ export type BacSexAtBirth = 'male' | 'female'
 export type BacUserSettings = {
   weightKg: number
   sexAtBirth: BacSexAtBirth
+  dateOfBirth: string | null
   ageYears: number
   heightCm: number
   useCustomBodyWaterFactor: boolean
@@ -65,6 +66,7 @@ const FOOD_PROFILE_ABSORPTION_MULTIPLIER: Record<BacFoodProfile, number> = {
 const DEFAULT_BAC_SETTINGS: BacUserSettings = {
   weightKg: 75,
   sexAtBirth: 'male',
+  dateOfBirth: null,
   ageYears: 30,
   heightCm: 175,
   useCustomBodyWaterFactor: false,
@@ -141,6 +143,51 @@ function normalizeSexAtBirth(value: unknown): BacSexAtBirth {
   return DEFAULT_BAC_SETTINGS.sexAtBirth
 }
 
+function normalizeDateOfBirth(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed)
+  if (!match) return null
+
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const date = new Date(Date.UTC(year, month - 1, day))
+
+  if (
+    !Number.isFinite(year)
+    || month < 1
+    || month > 12
+    || day < 1
+    || day > 31
+    || date.getUTCFullYear() !== year
+    || (date.getUTCMonth() + 1) !== month
+    || date.getUTCDate() !== day
+  ) {
+    return null
+  }
+
+  return trimmed
+}
+
+function calculateAgeYearsFromDateOfBirth(dateOfBirth: string, now: Date = new Date()): number {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateOfBirth)
+  if (!match) return DEFAULT_BAC_SETTINGS.ageYears
+
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  let years = now.getFullYear() - year
+
+  const monthDelta = (now.getMonth() + 1) - month
+  const dayDelta = now.getDate() - day
+  if (monthDelta < 0 || (monthDelta === 0 && dayDelta < 0)) {
+    years -= 1
+  }
+
+  return years
+}
+
 function calculateBodyWaterFactor(settings: {
   sexAtBirth: BacSexAtBirth
   ageYears: number
@@ -161,8 +208,18 @@ function normalizeBacSettings(value: Partial<BacUserSettings> | undefined): BacU
     BAC_SETTINGS_BOUNDS.weightKg.min,
     BAC_SETTINGS_BOUNDS.weightKg.max,
   )
+
+  const dateOfBirth = normalizeDateOfBirth(value?.dateOfBirth)
+    ?? normalizeDateOfBirth(state.bacSettings.dateOfBirth)
+
+  const derivedAgeYears = dateOfBirth
+    ? calculateAgeYearsFromDateOfBirth(dateOfBirth)
+    : undefined
+
   const ageYears = clampNumber(
-    typeof value?.ageYears === 'number' ? value.ageYears : state.bacSettings.ageYears,
+    typeof derivedAgeYears === 'number'
+      ? derivedAgeYears
+      : (typeof value?.ageYears === 'number' ? value.ageYears : state.bacSettings.ageYears),
     BAC_SETTINGS_BOUNDS.ageYears.min,
     BAC_SETTINGS_BOUNDS.ageYears.max,
   )
@@ -195,6 +252,7 @@ function normalizeBacSettings(value: Partial<BacUserSettings> | undefined): BacU
   return {
     weightKg,
     sexAtBirth,
+    dateOfBirth,
     ageYears,
     heightCm,
     useCustomBodyWaterFactor,

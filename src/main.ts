@@ -34,7 +34,7 @@ async function boot() {
   const bacEstimatePreview = document.getElementById('bacEstimatePreview')
   const bacWeightKgInput = document.getElementById('bacWeightKgInput') as HTMLInputElement | null
   const bacSexAtBirthInput = document.getElementById('bacSexAtBirthInput') as HTMLSelectElement | null
-  const bacAgeYearsInput = document.getElementById('bacAgeYearsInput') as HTMLInputElement | null
+  const bacDateOfBirthInput = document.getElementById('bacDateOfBirthInput') as HTMLInputElement | null
   const bacHeightCmInput = document.getElementById('bacHeightCmInput') as HTMLInputElement | null
   const bacUseCustomBodyWaterInput = document.getElementById('bacUseCustomBodyWaterInput') as HTMLInputElement | null
   const bacCustomBodyWaterInput = document.getElementById('bacCustomBodyWaterInput') as HTMLInputElement | null
@@ -71,6 +71,38 @@ async function boot() {
   const estimateDrinkDurationMs = (ml: number, percent: number) => {
     const fraction = percent > 1 ? percent / 100 : percent
     return Math.max(0, ((ml * fraction) / 0.5) * 60_000)
+  }
+
+  const deriveDateOfBirthFromAgeYears = (ageYears: number): string => {
+    const now = new Date()
+    const year = now.getFullYear() - Math.max(0, Math.floor(ageYears))
+    return `${String(year).padStart(4, '0')}-01-01`
+  }
+
+  const normalizeDateOfBirth = (value: string): string | null => {
+    const raw = value.trim()
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw)
+    if (!match) return null
+
+    const yyyy = Number(match[1])
+    const mm = Number(match[2])
+    const dd = Number(match[3])
+    const date = new Date(Date.UTC(yyyy, mm - 1, dd))
+
+    if (
+      !Number.isFinite(yyyy)
+      || mm < 1
+      || mm > 12
+      || dd < 1
+      || dd > 31
+      || date.getUTCFullYear() !== yyyy
+      || (date.getUTCMonth() + 1) !== mm
+      || date.getUTCDate() !== dd
+    ) {
+      return null
+    }
+
+    return raw
   }
 
   const normalizeLooseTimeToHHMM = (value: string): string | null => {
@@ -160,7 +192,7 @@ async function boot() {
       || !bacSettingsModal
       || !bacWeightKgInput
       || !bacSexAtBirthInput
-      || !bacAgeYearsInput
+      || !bacDateOfBirthInput
       || !bacHeightCmInput
       || !bacUseCustomBodyWaterInput
       || !bacCustomBodyWaterInput
@@ -174,7 +206,7 @@ async function boot() {
     const settings = actions.getBacSettings()
     bacWeightKgInput.value = String(settings.weightKg)
     bacSexAtBirthInput.value = settings.sexAtBirth
-    bacAgeYearsInput.value = String(Math.round(settings.ageYears))
+    bacDateOfBirthInput.value = settings.dateOfBirth ?? deriveDateOfBirthFromAgeYears(settings.ageYears)
     bacHeightCmInput.value = String(Math.round(settings.heightCm))
     bacUseCustomBodyWaterInput.checked = settings.useCustomBodyWaterFactor
     bacCustomBodyWaterInput.value = settings.customBodyWaterFactor.toFixed(2)
@@ -417,7 +449,7 @@ async function boot() {
       !actions.updateBacSettings
       || !bacWeightKgInput
       || !bacSexAtBirthInput
-      || !bacAgeYearsInput
+      || !bacDateOfBirthInput
       || !bacHeightCmInput
       || !bacUseCustomBodyWaterInput
       || !bacCustomBodyWaterInput
@@ -430,7 +462,7 @@ async function boot() {
 
     const weightKg = Number(bacWeightKgInput.value)
     const sexAtBirth = bacSexAtBirthInput.value
-    const ageYears = Number(bacAgeYearsInput.value)
+    const dateOfBirth = normalizeDateOfBirth(bacDateOfBirthInput.value)
     const heightCm = Number(bacHeightCmInput.value)
     const useCustomBodyWaterFactor = Boolean(bacUseCustomBodyWaterInput.checked)
     const customBodyWaterFactor = Number(bacCustomBodyWaterInput.value)
@@ -442,11 +474,11 @@ async function boot() {
     const validFoodProfile = foodProfile === 'empty' || foodProfile === 'light' || foodProfile === 'heavy'
     if (
       !Number.isFinite(weightKg)
-      || !Number.isFinite(ageYears)
       || !Number.isFinite(heightCm)
       || !Number.isFinite(customBodyWaterFactor)
       || !Number.isFinite(eliminationRatePerHour)
       || !Number.isFinite(absorptionMinutes)
+      || !dateOfBirth
       || !validSexAtBirth
       || !validFoodProfile
     ) {
@@ -457,7 +489,7 @@ async function boot() {
     actions.updateBacSettings({
       weightKg,
       sexAtBirth,
-      ageYears,
+      dateOfBirth,
       heightCm,
       useCustomBodyWaterFactor,
       customBodyWaterFactor,

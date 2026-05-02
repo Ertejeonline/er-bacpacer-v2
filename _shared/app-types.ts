@@ -14,6 +14,7 @@ export type BacSexAtBirth = 'male' | 'female'
 export type BacUserSettings = {
   weightKg: number
   sexAtBirth: BacSexAtBirth
+  dateOfBirth: string | null
   ageYears: number
   heightCm: number
   useCustomBodyWaterFactor: boolean

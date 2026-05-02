@@ -207,6 +207,25 @@ describe('g2/state', () => {
     expect(settings.foodProfile).toBe('light')
   })
 
+  it('derives age from date of birth when provided', () => {
+    const now = new Date()
+    const birthYear = now.getFullYear() - 40
+    const dob = `${birthYear}-01-01`
+
+    setBacSettings({
+      dateOfBirth: dob,
+      ageYears: 99,
+      weightKg: 70,
+      heightCm: 175,
+      sexAtBirth: 'male',
+    })
+
+    const settings = getBacSettings()
+    expect(settings.dateOfBirth).toBe(dob)
+    expect(settings.ageYears).toBeGreaterThanOrEqual(39)
+    expect(settings.ageYears).toBeLessThanOrEqual(40)
+  })
+
   it('recomputes auto body water factor when custom mode is disabled', () => {
     setBacSettings({
       useCustomBodyWaterFactor: true,
@@ -238,6 +257,7 @@ describe('g2/state', () => {
       bacSettings: {
         weightKg: 999,
         sexAtBirth: 'male',
+        dateOfBirth: '2010-01-01',
         ageYears: 10,
         heightCm: 500,
         useCustomBodyWaterFactor: false,
@@ -263,6 +283,7 @@ describe('g2/state', () => {
     expect(state.drinkEntries).toHaveLength(1)
     expect(state.drinkEntries[0]?.ml).toBe(333)
     expect(state.bacSettings.weightKg).toBe(250)
+    expect(state.bacSettings.dateOfBirth).toBe('2010-01-01')
     expect(state.bacSettings.ageYears).toBe(18)
     expect(state.bacSettings.heightCm).toBe(230)
     expect(state.bacSettings.eliminationRatePerHour).toBe(0.005)
