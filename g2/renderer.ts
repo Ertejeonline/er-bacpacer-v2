@@ -35,6 +35,8 @@ const SIDE_WIDTH = SCREEN_WIDTH / 2
 const SIDE_HEIGHT = 30
 const TOP_RIGHT_WIDTH = 72
 const TOP_RIGHT_X = SCREEN_WIDTH - TOP_RIGHT_WIDTH
+const BOTTOM_RIGHT_WIDTH = 96
+const BOTTOM_RIGHT_X = SCREEN_WIDTH - BOTTOM_RIGHT_WIDTH
 const MAIN_Y = SIDE_HEIGHT
 const MAIN_HEIGHT = SCREEN_HEIGHT - 2 * SIDE_HEIGHT
 const MAIN_WIDTH = SCREEN_WIDTH / 2
@@ -105,6 +107,14 @@ function getMainRightContent(): string {
   return trimForRebuild(`${latest}\n\nDrinks:\n${history}`)
 }
 
+function getBottomRightContent(): string {
+  const estimate = getBacEstimateAt()
+  if (estimate.bacGdl <= 0) return ''
+
+  const risingMarker = estimate.isRisingToPeak ? ' ↗️' : ''
+  return `${formatBacGdl(estimate.bacGdl)}${risingMarker}`
+}
+
 function buildStaticTextContainers(): TextContainerProperty[] {
   return [
     new TextContainerProperty({
@@ -146,10 +156,10 @@ function buildStaticTextContainers(): TextContainerProperty[] {
     new TextContainerProperty({
       containerID: 6,
       containerName: 'BottomRight',
-      content: '',
-      xPosition: SIDE_WIDTH,
+      content: getBottomRightContent(),
+      xPosition: BOTTOM_RIGHT_X,
       yPosition: SCREEN_HEIGHT - SIDE_HEIGHT,
-      width: SIDE_WIDTH,
+      width: BOTTOM_RIGHT_WIDTH,
       height: SIDE_HEIGHT,
     }),
   ]
@@ -233,6 +243,12 @@ async function updateRightDynamicContentOnlyInternal(): Promise<void> {
     containerID: 4,
     containerName: 'MainRight',
     content: getMainRightContent(),
+  }))
+
+  await b.textContainerUpgrade(new TextContainerUpgrade({
+    containerID: 6,
+    containerName: 'BottomRight',
+    content: getBottomRightContent(),
   }))
 }
 
