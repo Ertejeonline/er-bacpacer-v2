@@ -165,6 +165,34 @@ describe('g2/renderer', () => {
     expect(topRightUpdate).toBeDefined()
   })
 
+  it('shows current time on top-left in standby detail and hides it with standby hud', async () => {
+    const bridge = makeBridgeMocks()
+    setBridge(bridge as never)
+    vi.spyOn(Date, 'now').mockReturnValue(0)
+
+    state.menuVisible = false
+    state.currentMenuItem = 'standBy'
+    await updateMenuDisplay()
+
+    const visibleTopLeft = bridge.textContainerUpgrade.mock.calls
+      .map((args) => args[0] as { containerID?: number; content?: string })
+      .find((payload) => payload.containerID === 1)
+
+    expect(visibleTopLeft).toBeDefined()
+    expect(visibleTopLeft?.content).toMatch(/^\d{2}:\d{2}$/)
+
+    bridge.textContainerUpgrade.mockClear()
+    expect(toggleStandbyHudVisibility()).toBe(true)
+    await updateMenuDisplay()
+
+    const hiddenTopLeft = bridge.textContainerUpgrade.mock.calls
+      .map((args) => args[0] as { containerID?: number; content?: string })
+      .find((payload) => payload.containerID === 1)
+
+    expect(hiddenTopLeft).toBeDefined()
+    expect(hiddenTopLeft?.content).toBe(' ')
+  })
+
   it('shows down-right trend arrow when BAC is falling', async () => {
     const bridge = makeBridgeMocks()
     setBridge(bridge as never)

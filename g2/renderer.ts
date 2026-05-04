@@ -68,6 +68,10 @@ function isStandbyDetailContext(): boolean {
   return !state.menuVisible && state.currentMenuItem === 'standBy'
 }
 
+export function isStandbyHudHidden(): boolean {
+  return standbyHudHidden
+}
+
 export function toggleStandbyHudVisibility(): boolean {
   if (!isStandbyDetailContext()) return standbyHudHidden
   standbyHudHidden = !standbyHudHidden
@@ -76,6 +80,17 @@ export function toggleStandbyHudVisibility(): boolean {
 
 export function resetStandbyHudVisibility(): void {
   standbyHudHidden = false
+}
+
+function getTopLeftContent(): string {
+  if (isStandbyDetailContext()) {
+    if (standbyHudHidden) return ' '
+    return formatDrinkEntryTime(Date.now())
+  }
+
+  return state.menuVisible
+    ? (state.addDrinkSubmenuVisible ? 'Log a drink' : 'Menu')
+    : (state.currentMenuItem === 'standBy' ? '' : `${getMenuItemLabel(state.currentMenuItem)}`)
 }
 
 function getTopRightContent(): string {
@@ -147,7 +162,7 @@ function buildStaticTextContainers(): TextContainerProperty[] {
     new TextContainerProperty({
       containerID: 1,
       containerName: 'TopLeft',
-      content: '',
+      content: getTopLeftContent(),
       xPosition: 0,
       yPosition: 0,
       width: SIDE_WIDTH,
@@ -268,6 +283,12 @@ async function updateRightDynamicContentOnlyInternal(): Promise<void> {
   const estimate = getBacEstimateAt()
 
   await b.textContainerUpgrade(new TextContainerUpgrade({
+    containerID: 1,
+    containerName: 'TopLeft',
+    content: getTopLeftContent(),
+  }))
+
+  await b.textContainerUpgrade(new TextContainerUpgrade({
     containerID: 4,
     containerName: 'MainRight',
     content: getMainRightContent(estimate),
@@ -287,10 +308,6 @@ async function updateMenuDisplayInternal(): Promise<void> {
   if (!isStandbyDetailContext() && standbyHudHidden) {
     standbyHudHidden = false
   }
-
-  const breadcrumb = state.menuVisible
-    ? (state.addDrinkSubmenuVisible ? 'Log a drink' : 'Menu')
-    : (state.currentMenuItem === 'standBy' ? '' : `${getMenuItemLabel(state.currentMenuItem)}`)
 
   const targetLayoutMode: LayoutMode = !state.menuVisible
     ? (state.currentMenuItem === 'standBy' ? 'standby-detail' : 'detail')
@@ -335,7 +352,7 @@ async function updateMenuDisplayInternal(): Promise<void> {
   await b.textContainerUpgrade(new TextContainerUpgrade({
     containerID: 1,
     containerName: 'TopLeft',
-    content: breadcrumb,
+    content: getTopLeftContent(),
   }))
 
   await updateRightDynamicContentOnlyInternal()

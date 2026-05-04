@@ -21,6 +21,7 @@ import {
 } from './state'
 import {
   addDrinkSubmenuItemFromIndex,
+  isStandbyHudHidden,
   menuItemFromIndex,
   resetRendererSession,
   toggleStandbyHudVisibility,
@@ -67,8 +68,11 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
     if (!connected) return
     stopRefreshTimer()
 
+    const refreshIntervalMs = 10_000
+
     const tick = () => {
       if (!connected || !appInForeground) return
+      if (!state.menuVisible && state.currentMenuItem === 'standBy' && isStandbyHudHidden()) return
       void updateMenuDisplay()
     }
 
@@ -76,14 +80,13 @@ export async function createBacpacerActions(setStatus: SetStatus): Promise<AppAc
       refreshTimerId = window.setTimeout(() => {
         refreshTimerId = null
         tick()
-        scheduleIn(60_000)
+        scheduleIn(refreshIntervalMs)
       }, delayMs)
     }
 
-    // Refresh immediately, then align to the next wall-clock minute.
+    // Refresh immediately, then keep dynamic standby HUD content current.
     tick()
-    const msToNextMinute = 60_000 - (Date.now() % 60_000)
-    scheduleIn(msToNextMinute)
+    scheduleIn(refreshIntervalMs)
   }
 
   const refreshDisplayIfActive = () => {
