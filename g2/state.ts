@@ -50,6 +50,13 @@ export type BacEstimate = {
   estimatedSoberAtMs: number | null
 }
 
+type ModeledDrinkEntry = {
+  startMs: number
+  endMs: number
+  ethanolGrams: number
+  totalAssimilationMinutes: number
+}
+
 const PERSISTENCE_KEY = 'bacpacer.persisted.v1'
 
 type PersistedState = {
@@ -80,7 +87,6 @@ const FOOD_PROFILE_BIOAVAILABILITY: Record<BacFoodProfile, number> = {
   heavy: 0.75,
 }
 
-const BAC_MODEL_ELIMINATION_RATE_PER_HOUR = 0.015
 const BAC_MODEL_ABSORPTION_MINUTES = 30
 const BAC_MODEL_BODY_WATER_FACTOR_MIN = 0.4
 const BAC_MODEL_BODY_WATER_FACTOR_MAX = 0.9
@@ -466,97 +472,114 @@ export function getBacSettings(): BacUserSettings {
   return { ...state.bacSettings }
 }
 
-export function getBacEstimateAt(nowMs: number = Date.now()): BacEstimate {
-  const entries = [...state.drinkEntries].sort((a, b) => a.timestampMs - b.timestampMs)
-  if (entries.length === 0) {
-    return {
-      bacGdl: 0,
-      peakBacGdl: 0,
-      peakAtMs: null,
-      isRisingToPeak: false,
-      absorbedAlcoholGrams: 0,
-      hoursSinceFirstDrink: 0,
-      estimatedSoberAtMs: null,
-    }
+function createZeroBacEstimate(): BacEstimate {
+  return {
+    bacGdl: 0,
+    peakBacGdl: 0,
+    peakAtMs: null,
+    isRisingToPeak: false,
+    absorbedAlcoholGrams: 0,
+    hoursSinceFirstDrink: 0,
+    estimatedSoberAtMs: null,
   }
+}
+
+export function getBacEstimateAt(nowMs: number = Date.now()): BacEstimate {
+  const entries = state.drinkEntries
+    .filter((entry) => (nowMs - getDrinkEntryEndTimestampMs(entry)) < DRINK_ENTRY_MAX_AGE_MS)
+    .sort((a, b) => a.timestampMs - b.timestampMs)
+  if (entries.length === 0) return createZeroBacEstimate()
 
   const settings = state.bacSettings
   const bodyWaterFactor = calculateBodyWaterFactor(settings)
   const eliminationRatePerHour = METABOLISM_LEVEL_ELIMINATION_RATE[settings.metabolismLevel]
-  const latestEntry = entries[entries.length - 1]
-
-  const getDrinkDurationMs = (entry: DrinkEntry): number => {
-    return Math.max(0, getDrinkEntryEndTimestampMs(entry) - entry.timestampMs)
-  }
 
   const foodAbsorptionMultiplier = FOOD_PROFILE_ABSORPTION_MULTIPLIER[settings.foodProfile]
   const foodBioavailability = FOOD_PROFILE_BIOAVAILABILITY[settings.foodProfile]
   const effectiveAbsorptionMinutes = BAC_MODEL_ABSORPTION_MINUTES / foodAbsorptionMultiplier
+  const modeledEntries: ModeledDrinkEntry[] = entries.map((entry) => {
+    const startMs = entry.timestampMs
+    const endMs = getDrinkEntryEndTimestampMs(entry)
+    const percentFraction = getPercentFraction(entry.percent)
+    const ethanolGrams = entry.ml * percentFraction * 0.789 * foodBioavailability
+    const drinkDurationMinutes = Math.max(0, (endMs - startMs) / 60_000)
+
+    return {
+      startMs,
+      endMs,
+      ethanolGrams,
+      totalAssimilationMinutes: drinkDurationMinutes + Math.max(0, effectiveAbsorptionMinutes),
+    }
+  })
 
   const getAbsorbedAlcoholGramsAt = (targetMs: number): number => {
     let absorbedAlcoholGramsAtTarget = 0
-    for (const entry of entries) {
-      const elapsedMinutes = Math.max(0, (targetMs - entry.timestampMs) / 60_000)
-      const percentFraction = getPercentFraction(entry.percent)
-      const ethanolGrams = entry.ml * percentFraction * 0.789 * foodBioavailability
-      const drinkDurationMinutes = getDrinkDurationMs(entry) / 60_000
-      const totalAssimilationMinutes = drinkDurationMinutes + Math.max(0, effectiveAbsorptionMinutes)
-      const absorbedFraction = totalAssimilationMinutes <= 0
+    for (const entry of modeledEntries) {
+      const elapsedMinutes = Math.max(0, (targetMs - entry.startMs) / 60_000)
+      const absorbedFraction = entry.totalAssimilationMinutes <= 0
         ? 1
-        : Math.min(1, elapsedMinutes / totalAssimilationMinutes)
-      absorbedAlcoholGramsAtTarget += ethanolGrams * absorbedFraction
+        : Math.min(1, elapsedMinutes / entry.totalAssimilationMinutes)
+      absorbedAlcoholGramsAtTarget += entry.ethanolGrams * absorbedFraction
     }
     return absorbedAlcoholGramsAtTarget
   }
 
-  const getBacAt = (targetMs: number): number => {
-    const firstDrinkAtMs = entries[0].timestampMs
-    const hoursSinceFirstDrinkAtTarget = Math.max(0, (targetMs - firstDrinkAtMs) / 3_600_000)
-    const absorbedAlcoholGramsAtTarget = getAbsorbedAlcoholGramsAt(targetMs)
-
-    const distributionLiters = bodyWaterFactor * settings.weightKg
-    const rawBacAtTarget = distributionLiters > 0
-      ? absorbedAlcoholGramsAtTarget / (distributionLiters * 10)
-      : 0
-
-    let activeLatestDrinkHours = 0
-    if (latestEntry) {
-      const latestStart = latestEntry.timestampMs
-      const latestEnd = latestStart + getDrinkDurationMs(latestEntry)
-      if (targetMs > latestStart && latestEnd > latestStart) {
-        const overlapEnd = Math.min(targetMs, latestEnd)
-        activeLatestDrinkHours = Math.max(0, (overlapEnd - latestStart) / 3_600_000)
-      }
-    }
-
-    const effectiveEliminationHours = Math.max(0, hoursSinceFirstDrinkAtTarget - activeLatestDrinkHours)
-    const metabolizedAtTarget = eliminationRatePerHour * effectiveEliminationHours
-    return Math.max(0, rawBacAtTarget - metabolizedAtTarget)
-  }
-
-  const firstDrinkAtMs = entries[0].timestampMs
+  const firstDrinkAtMs = modeledEntries[0].startMs
   const hoursSinceFirstDrink = Math.max(0, (nowMs - firstDrinkAtMs) / 3_600_000)
-  const absorbedAlcoholGrams = getAbsorbedAlcoholGramsAt(nowMs)
-  const bacGdl = getBacAt(nowMs)
-
-  const totalEthanolGrams = entries.reduce((sum, entry) => {
-    const percentFraction = getPercentFraction(entry.percent)
-    return sum + (entry.ml * percentFraction * 0.789 * foodBioavailability)
-  }, 0)
-
   const distributionLiters = bodyWaterFactor * settings.weightKg
+  const totalEthanolGrams = modeledEntries.reduce((sum, entry) => sum + entry.ethanolGrams, 0)
   const maxRawBac = distributionLiters > 0
     ? totalEthanolGrams / (distributionLiters * 10)
     : 0
 
-  const latestDrinkAtMs = entries[entries.length - 1].timestampMs
-  const absorptionDoneAtMs = latestDrinkAtMs + (effectiveAbsorptionMinutes * 60_000)
+  const latestDrinkEndMs = modeledEntries.reduce(
+    (latestEndMs, entry) => Math.max(latestEndMs, entry.endMs),
+    modeledEntries[0].endMs,
+  )
+  const absorptionDoneAtMs = latestDrinkEndMs + (effectiveAbsorptionMinutes * 60_000)
   const eliminationWindowMs = eliminationRatePerHour > 0
     ? ((maxRawBac / eliminationRatePerHour) * 3_600_000)
     : 0
-  const simulationEndMs = nowMs + Math.min(72 * 3_600_000, Math.max(4 * 3_600_000, (absorptionDoneAtMs - nowMs) + eliminationWindowMs + (2 * 3_600_000)))
+  const simulationEndMs = nowMs + Math.min(
+    72 * 3_600_000,
+    Math.max(4 * 3_600_000, (absorptionDoneAtMs - nowMs) + eliminationWindowMs + (2 * 3_600_000)),
+  )
+
+  type SimulationState = {
+    currentTimeMs: number
+    currentBac: number
+    absorbedAlcoholGrams: number
+  }
+
+  const advanceSimulationTo = (targetMs: number, simulation: SimulationState): void => {
+    if (targetMs <= simulation.currentTimeMs) return
+
+    const absorbedAlcoholAtTarget = getAbsorbedAlcoholGramsAt(targetMs)
+    const absorbedAlcoholDelta = Math.max(0, absorbedAlcoholAtTarget - simulation.absorbedAlcoholGrams)
+    const absorbedBacDelta = distributionLiters > 0
+      ? absorbedAlcoholDelta / (distributionLiters * 10)
+      : 0
+    const elapsedHours = Math.max(0, (targetMs - simulation.currentTimeMs) / 3_600_000)
+
+    simulation.currentBac = Math.max(0, simulation.currentBac + absorbedBacDelta - (eliminationRatePerHour * elapsedHours))
+    simulation.absorbedAlcoholGrams = absorbedAlcoholAtTarget
+    simulation.currentTimeMs = targetMs
+  }
 
   const stepMs = 60_000
+  const simulation: SimulationState = {
+    currentTimeMs: firstDrinkAtMs,
+    currentBac: 0,
+    absorbedAlcoholGrams: getAbsorbedAlcoholGramsAt(firstDrinkAtMs),
+  }
+
+  for (let t = firstDrinkAtMs + stepMs; t < nowMs; t += stepMs) {
+    advanceSimulationTo(t, simulation)
+  }
+  advanceSimulationTo(nowMs, simulation)
+
+  const absorbedAlcoholGrams = simulation.absorbedAlcoholGrams
+  const bacGdl = simulation.currentBac
   let estimatedSoberAtMs: number | null = null
   let hadPositiveBac = bacGdl > 0
   let previousBac = bacGdl
@@ -564,7 +587,8 @@ export function getBacEstimateAt(nowMs: number = Date.now()): BacEstimate {
   let peakAtMs = nowMs
 
   for (let t = nowMs + stepMs; t <= simulationEndMs; t += stepMs) {
-    const bacAtT = getBacAt(t)
+    advanceSimulationTo(t, simulation)
+    const bacAtT = simulation.currentBac
     if (bacAtT > 0) hadPositiveBac = true
 
     if (bacAtT > peakBacGdl) {

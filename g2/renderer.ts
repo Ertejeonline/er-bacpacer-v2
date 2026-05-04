@@ -8,7 +8,7 @@ import {
   TextContainerUpgrade,
 } from '@evenrealities/even_hub_sdk'
 import { appendEventLog } from '../_shared/log'
-import { formatBacGdl, formatDrinkEntryTime, getBacEstimateAt, getDrinkEntryEndTimestampMs, state, getBridge, METABOLISM_LEVEL_LABELS, type MenuItem } from './state'
+import { formatBacGdl, formatDrinkEntryTime, getBacEstimateAt, getDrinkEntryEndTimestampMs, state, getBridge, METABOLISM_LEVEL_LABELS, type BacEstimate, type MenuItem } from './state'
 
 const MENU_ITEMS: { id: MenuItem; label: string }[] = [
   { id: 'standBy', label: 'Stand by' },
@@ -95,10 +95,9 @@ function getBacTrendMarker(isRisingToPeak: boolean, bacGdl: number): string {
   return isRisingToPeak ? ' ↗️' : ' ↘️'
 }
 
-function getMainRightContent(): string {
+function getMainRightContent(estimate: BacEstimate = getBacEstimateAt()): string {
   const inSummaryContext = !state.menuVisible && state.currentMenuItem === 'setupdrink'
   if (inSummaryContext) {
-    const estimate = getBacEstimateAt()
     const currentBac = formatBacGdl(estimate.bacGdl)
     const peakBac = formatBacGdl(estimate.peakBacGdl)
     const peakAt = estimate.peakAtMs ? formatDrinkEntryTime(estimate.peakAtMs) : '--:--'
@@ -132,10 +131,9 @@ function getMainRightContent(): string {
   return trimForRebuild(`${latest}\n\nDrinks:\n${history}`)
 }
 
-function getBottomRightContent(): string {
+function getBottomRightContent(estimate: BacEstimate = getBacEstimateAt()): string {
   if (standbyHudHidden && isStandbyDetailContext()) return ' '
 
-  const estimate = getBacEstimateAt()
   if (estimate.bacGdl <= 0) return ' '
 
   const trendMarker = getBacTrendMarker(estimate.isRisingToPeak, estimate.bacGdl)
@@ -143,6 +141,8 @@ function getBottomRightContent(): string {
 }
 
 function buildStaticTextContainers(): TextContainerProperty[] {
+  const estimate = getBacEstimateAt()
+
   return [
     new TextContainerProperty({
       containerID: 1,
@@ -165,7 +165,7 @@ function buildStaticTextContainers(): TextContainerProperty[] {
     new TextContainerProperty({
       containerID: 4,
       containerName: 'MainRight',
-      content: getMainRightContent(),
+      content: getMainRightContent(estimate),
       xPosition: MAIN_WIDTH,
       yPosition: MAIN_Y,
       width: MAIN_WIDTH,
@@ -183,7 +183,7 @@ function buildStaticTextContainers(): TextContainerProperty[] {
     new TextContainerProperty({
       containerID: 6,
       containerName: 'BottomRight',
-      content: getBottomRightContent(),
+      content: getBottomRightContent(estimate),
       xPosition: BOTTOM_RIGHT_X,
       yPosition: SCREEN_HEIGHT - SIDE_HEIGHT,
       width: BOTTOM_RIGHT_WIDTH,
@@ -265,17 +265,18 @@ async function updateRightDynamicContentOnlyInternal(): Promise<void> {
   if (!b || !containersCreated) return
 
   await updateTopRightCountdownOnlyInternal()
+  const estimate = getBacEstimateAt()
 
   await b.textContainerUpgrade(new TextContainerUpgrade({
     containerID: 4,
     containerName: 'MainRight',
-    content: getMainRightContent(),
+    content: getMainRightContent(estimate),
   }))
 
   await b.textContainerUpgrade(new TextContainerUpgrade({
     containerID: 6,
     containerName: 'BottomRight',
-    content: getBottomRightContent(),
+    content: getBottomRightContent(estimate),
   }))
 }
 

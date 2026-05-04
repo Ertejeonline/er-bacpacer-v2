@@ -119,6 +119,49 @@ describe('g2/state', () => {
     expect(estimate.peakBacGdl).toBeGreaterThanOrEqual(estimate.bacGdl)
   })
 
+  it('keeps recent BAC positive even when the log contains much older drinks', () => {
+    const now = 30 * 60 * 60 * 1000
+    state.drinkEntries = [
+      {
+        ml: 500,
+        percent: 5,
+        timestampMs: now - (10 * 60 * 1000),
+        endTimestampMs: now,
+      },
+      {
+        ml: 200,
+        percent: 10,
+        timestampMs: now - (20 * 60 * 60 * 1000),
+        endTimestampMs: now - ((20 * 60 * 60 * 1000) - (30 * 60 * 1000)),
+      },
+    ]
+
+    const estimate = getBacEstimateAt(now)
+    expect(estimate.bacGdl).toBeGreaterThan(0)
+  })
+
+  it('uses explicit drink end times to slow BAC rise while a drink is still being consumed', () => {
+    const now = 60 * 60 * 1000
+
+    state.drinkEntries = [{
+      ml: 500,
+      percent: 5,
+      timestampMs: now - (30 * 60 * 1000),
+      endTimestampMs: now,
+    }]
+    const duringDrinkEstimate = getBacEstimateAt(now)
+
+    state.drinkEntries = [{
+      ml: 500,
+      percent: 5,
+      timestampMs: now - (30 * 60 * 1000),
+      endTimestampMs: now - (30 * 60 * 1000),
+    }]
+    const instantDrinkEstimate = getBacEstimateAt(now)
+
+    expect(duringDrinkEstimate.bacGdl).toBeLessThan(instantDrinkEstimate.bacGdl)
+  })
+
   it('updates, resorts, and clamps drink entry values', () => {
     state.drinkEntries = [
       { ml: 100, percent: 5, timestampMs: 1000, endTimestampMs: 2000 },
