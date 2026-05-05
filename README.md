@@ -18,7 +18,7 @@ It lets you log drinks on-glasses, shows a countdown until the next drink window
   - tracks current BAC and peak BAC
   - shows trend arrows (rising `↗️`, falling `↘️`) in BAC displays
   - estimates sober time
-  - supports food profile, body water factor mode, and profile inputs
+  - supports food profile, metabolism slider, and profile inputs
 - Companion web UI:
   - connect to bridge
   - view event log
@@ -78,4 +78,3 @@ It lets you log drinks on-glasses, shows a countdown until the next drink window
 
 - Persisted state key: `bacpacer.persisted.v1`
 - Drink history is bounded to recent entries and persisted via bridge storage (with browser localStorage fallback).
-- This repository folder is the Bacpacer app and is independent from `demo-app-g2`.
